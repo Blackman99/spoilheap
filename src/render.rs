@@ -176,12 +176,16 @@ pub fn report(
             s.used() as f64 / s.total as f64
         };
         let label = format!(
-            "{} free of {} ({:.1}%)",
+            "{:.0}% used · {} free of {}",
+            (100.0 - s.free_pct()).clamp(0.0, 100.0).floor(),
             units::bytes(s.free),
             units::bytes(s.total),
-            s.free_pct()
         );
-        let free = if s.free_pct() < 10.0 {
+        // same default floor as `guard`: under 10 GB agents start failing writes
+        let low = s.free < 10_000_000_000;
+        let free = if low {
+            format!("{}  {}", st.red(&label), st.red(&st.bold("LOW")))
+        } else if s.free_pct() < 10.0 {
             st.red(&label)
         } else {
             label
@@ -250,15 +254,19 @@ pub fn report(
             } else {
                 units::bytes(it.bytes)
             };
-            o.push_str(&format!(
-                "  {} {} {}{}  {:>size_w$}  {}\n",
+            let line = format!(
+                "  {} {} {}{}  {:>size_w$}",
                 st.dim(&format!("[{}]", it.id)),
                 st.verdict(it.verdict),
                 label,
                 " ".repeat(pad),
                 size,
-                st.dim(&meta),
-            ));
+            );
+            if meta.is_empty() {
+                o.push_str(&format!("{line}\n"));
+            } else {
+                o.push_str(&format!("{line}  {}\n", st.dim(&meta)));
+            }
             let ind = 15;
             let path = env.tilde(&it.path);
             let text = format!(

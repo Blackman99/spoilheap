@@ -35,7 +35,13 @@ pub fn select<'a>(env: &Env, rep: &'a Report, ch: &Choice, err: &mut Vec<String>
                         out.push(it)
                     }
                 }
-                None => err.push(format!("[{id}] is not in the last dig any more (it may be gone already). Run `spoilheap` to see current numbers.")),
+                None => {
+                    let range = match (rep.items.first(), rep.items.last()) {
+                        (Some(a), Some(b)) => format!("numbers now run [{}]–[{}]", a.id, b.id),
+                        _ => "nothing is left to clear".to_string(),
+                    };
+                    err.push(format!("[{id}] is not in the last dig any more (it may be gone already; {range}). Run `spoilheap` to see current numbers."))
+                }
             }
         }
     }
@@ -237,6 +243,13 @@ pub fn run(env: &Env, rep: &Report, ch: &Choice, st: &Style) -> i32 {
                 code = 1;
             }
         }
+    }
+    if planned == 0 && !chosen.iter().any(|i| i.verdict != Verdict::Keep) {
+        println!(
+            "\n{} every item you named is KEEP, so there is nothing to clear.",
+            st.bold("nothing to do:")
+        );
+        return code;
     }
     if !ch.yes {
         println!(

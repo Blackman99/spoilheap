@@ -513,7 +513,9 @@ impl Ctx<'_> {
                 let now = self.opts.now;
                 let mut recent = 0u64;
                 let mut files = vec![];
-                let m = Walker::new().each_file(&d, &mut |p, md| {
+                // count only the dumps: Crashpad's settings.dat / metadata stay and are not reported
+                let mut m = crate::walk::Measure::default();
+                Walker::new().each_file(&d, &mut |p, md| {
                     let n = p
                         .file_name()
                         .map(|n| n.to_string_lossy().to_ascii_lowercase())
@@ -524,6 +526,7 @@ impl Ctx<'_> {
                     if !older_than(md.modified().ok(), now, HOUR) {
                         recent += 1;
                     }
+                    m.add_file(crate::walk::allocated(md), md.modified().ok());
                     files.push(p.to_path_buf());
                 });
                 if files.is_empty() {

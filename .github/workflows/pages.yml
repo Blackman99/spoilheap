@@ -1,6 +1,6 @@
 name: Pages
 on:
-  push: {branches: [main], paths: ['site/**', '.github/workflows/pages.yml']}
+  push: {branches: [main], paths: ['site/**', 'install.sh', '.github/workflows/pages.yml']}
   workflow_dispatch:
 permissions: {contents: read, pages: write, id-token: write}
 concurrency: {group: pages, cancel-in-progress: true}
@@ -11,6 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/configure-pages@v5
+      - name: serve the installer next to the site
+        run: cp install.sh site/install.sh
       - uses: actions/upload-pages-artifact@v4
         with: {path: site}
       - id: d

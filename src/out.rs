@@ -50,7 +50,7 @@ pub fn report(rep: &Report, disks: &[DiskLine]) -> Value {
     json!({
         "tool": "spoilheap",
         "version": env!("CARGO_PKG_VERSION"),
-        "generated_at": now.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
+        "generated_at": crate::units::iso8601(now.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)),
         "disks": disks.iter().map(|d| json!({"path": d.mount.display().to_string(), "total_bytes": d.space.total, "free_bytes": d.space.free})).collect::<Vec<_>>(),
         "totals": {"bytes": all, "safe_reclaimable_bytes": safe, "review_reclaimable_bytes": review, "keep_bytes": keep},
         "repos_scanned": rep.repos,

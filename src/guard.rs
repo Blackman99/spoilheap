@@ -82,7 +82,7 @@ pub fn run(env: &Env, floor: Amount, paths: Vec<PathBuf>, quiet_ok: bool) -> i32
     let mut msg = String::new();
     for c in &low {
         msg.push_str(&format!(
-            "spoilheap guard: only {} free on {} (floor {}). Stop and tell the user before writing anything else: a full disk corrupts agent databases (anomalyco/opencode#56829) and can stop even cleanup commands from starting (openai/codex#55038).\n",
+            "spoilheap guard: only {} free on the disk holding {} (floor {}). Stop and tell the user before writing anything else: a full disk corrupts agent databases (anomalyco/opencode#56829) and can stop even cleanup commands from starting (openai/codex#55038).\n",
             units::bytes(c.space.free),
             env.tilde(&c.path),
             floor.label()

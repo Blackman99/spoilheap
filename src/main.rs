@@ -222,8 +222,15 @@ fn parse() -> Result<Args, String> {
                 {
                     a.cmd = arg.clone();
                 } else if first && !arg.chars().all(|c| c.is_ascii_digit()) {
+                    let cmds = ["dig", "clean", "watch", "guard", "hook", "mcp", "paths"];
+                    let near = cmds.iter().min_by_key(|c| lev(arg.as_str(), c)).unwrap();
+                    let hint = if lev(arg.as_str(), near) <= 2 {
+                        format!(" Did you mean `spoilheap {near}`?")
+                    } else {
+                        String::new()
+                    };
                     return Err(format!(
-                        "unknown command '{arg}'. Commands: dig (default), clean, watch, guard, hook, mcp, paths"
+                        "unknown command '{arg}'.{hint} Commands: dig (default), clean, watch, guard, hook, mcp, paths"
                     ));
                 } else {
                     a.pos.push(arg.clone());
