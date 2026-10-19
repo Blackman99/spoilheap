@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spoilheap: what your coding agents left on this disk</title>
+<meta name="description" content="spoilheap finds the worktrees, crash dumps, half-written git packs, session history and bloated SQLite files that Codex, Claude Code, OpenCode, Gemini CLI and Cline leave on disk, marks each SAFE, REVIEW or KEEP with the reason, clears only what is safe, and stops the agent before the disk hits zero.">
+<link rel="canonical" href="https://blackman99.github.io/spoilheap/">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/logo-512.png">
+<meta name="theme-color" content="#1f1b18">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="spoilheap">
+<meta property="og:title" content="spoilheap: what your coding agents left on this disk">
+<meta property="og:description" content="Worktrees, crash dumps, half-written git packs, SQLite that never shrinks. Every item gets SAFE, REVIEW or KEEP and the reason. Clears only what is safe.">
+<meta property="og:url" content="https://blackman99.github.io/spoilheap/">
+<meta property="og:image" content="https://blackman99.github.io/spoilheap/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A trench section through a disk: strata of Codex crash dumps, git packs and session history, each tagged SAFE, REVIEW or KEEP, beside a spoil heap.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="spoilheap: what your coding agents left on this disk">
+<meta name="twitter:description" content="Every leftover from Codex, Claude Code, OpenCode, Gemini CLI and Cline, marked SAFE / REVIEW / KEEP with the reason.">
+<meta name="twitter:image" content="https://blackman99.github.io/spoilheap/og.png">
+<link rel="preload" href="fonts/BarlowCondensed-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/Spectral-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#finds">Skip to the docs on this page</a>
+<header class="top">
+  <a class="brand" href="./" aria-label="spoilheap home"><img src="favicon.svg" alt="" width="28" height="28"><span>spoilheap</span></a>
+  <nav aria-label="Main">
+    <a href="docs/">Docs</a>
+    <a href="#install">Install</a>
+    <a href="https://github.com/Blackman99/spoilheap">GitHub</a>
+  </nav>
+</header>
+
+<section class="dig" id="dig" aria-labelledby="h1">
+  <canvas id="wall" aria-hidden="true"></canvas>
+  <div class="gauge" id="gauge" aria-live="polite">
+    <span class="g-k">free on /</span>
+    <b id="free">3.1 GB</b><span class="g-of">of 494 GB</span>
+    <span class="datum" id="datum"><i></i><span id="floormsg">under the 10 GB guard floor: the agent's next tool call is blocked</span></span>
+  </div>
+  <div class="board" id="board">
+    <p class="b-site" aria-hidden="true"><span>SITE&nbsp;~/</span><span>CTX&nbsp;101–128</span><span>19&nbsp;OCT&nbsp;26</span></p>
+    <h1 id="h1"><span class="b-word">SPOILHEAP</span><span class="b-sub">what your coding agents left on this disk</span></h1>
+    <p class="b-pitch">Worktrees, crash dumps, half-written git packs, chat history, SQLite files that never shrink. spoilheap digs a section through all of it, tags every layer <em class="v v-safe">SAFE</em> <em class="v v-review">REVIEW</em> or <em class="v v-keep">KEEP</em> with the reason, and shovels out only the safe ones.</p>
+    <div class="b-act">
+      <button type="button" class="shovel" id="shovel">Shovel out SAFE · <span id="safeamt">56.5 GB</span></button>
+      <a class="b-docs" href="docs/">Read the docs</a>
+    </div>
+    <div class="b-install"><code id="cmd">curl -fsSL https://blackman99.github.io/spoilheap/install.sh | sh</code><button type="button" class="copy" data-copy="cmd" aria-label="Copy the install command">copy</button></div>
+  </div>
+  <ol class="tags" id="tags" aria-label="Layers in this section, newest at the top"></ol>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="false" aria-labelledby="sheet-h" hidden>
+    <button type="button" class="sheet-x" id="sheet-x" aria-label="Close">×</button>
+    <h2 id="sheet-h"></h2>
+    <ul id="sheet-list"></ul>
+  </div>
+  <p class="caption">Section drawn from real <code>spoilheap --json</code> output on the demo home in <a href="https://github.com/Blackman99/spoilheap/blob/main/scripts/demohome.sh">scripts/demohome.sh</a>: real git worktrees and a real SQLite file; the big files are sparse and the 3.1 GB free is simulated. Layer thickness is to scale; newest on top.</p>
+</section>
+
+<main>
+<section class="layer s-humus" id="finds" aria-labelledby="h-finds">
+  <div class="in">
+    <p class="ctx"><span>201</span>context</p>
+    <h2 id="h-finds">What is in the section</h2>
+    <p class="lead">Each agent keeps its own pile in its own place. None of them tells you the total, and the one-click cleaners count the worktree folder as one number and stop there.</p>
+    <dl class="finds">
+      <div><dt>Codex</dt><dd><code>~/.codex/worktrees</code> <code>sessions</code> <code>archived_sessions</code> <code>log</code> <code>.tmp</code> <code>logs_*.sqlite</code>, Crashpad dumps from the desktop app</dd></div>
+      <div><dt>Claude Code</dt><dd><code>~/.claude/projects</code> <code>file-history</code> <code>shell-snapshots</code> <code>debug</code>, and <code>.claude/worktrees</code> inside your repos</dd></div>
+      <div><dt>OpenCode</dt><dd><code>opencode.db</code> (free pages measured from the SQLite header), <code>snapshot/&lt;project&gt;</code> undo repos, <code>log</code></dd></div>
+      <div><dt>Gemini CLI · Cline</dt><dd><code>~/.gemini/tmp</code>; Cline tasks and checkpoint repos in VS Code, Cursor, Windsurf, VSCodium and <code>~/.cline/data</code></dd></div>
+      <div><dt>Your repos</dt><dd><code>tmp_pack_*</code> left by a git that died mid-write, stale worktree registrations, <code>.aider.tags.cache.v4</code>, git-ignored build output inside agent worktrees</dd></div>
+    </dl>
+    <p>Every path is taken from the agent's own source or docs, and <code>spoilheap paths</code> prints which ones exist on your machine. Hard links count once, symlinks are never followed, and sizes are blocks on disk, not file lengths.</p>
+  </div>
+</section>
+
+<section class="layer s-sand" id="flags" aria-labelledby="h-flags">
+  <div class="in">
+    <p class="ctx"><span>202</span>context</p>
+    <h2 id="h-flags">Three flags, and why each one is planted</h2>
+    <ul class="flags">
+      <li><i class="pin pin-safe" aria-hidden="true"></i><div><h3>SAFE</h3><p>Garbage, or rebuildable in one command: crash dumps, a worktree that is clean and whose commits are all on another branch, tag or remote, git-ignored <code>target/</code> and <code>node_modules/</code> inside it, <code>tmp_pack_*</code> untouched for an hour, logs older than a day.</p></div></li>
+      <li><i class="pin pin-review" aria-hidden="true"></i><div><h3>REVIEW</h3><p>Yours to judge: chats older than <code>--older 30d</code>, a worktree with commits that exist nowhere else (it says how many), a worktree git no longer knows about, a SQLite file with hundreds of MB of free pages.</p></div></li>
+      <li><i class="pin pin-keep" aria-hidden="true"></i><div><h3>KEEP</h3><p>Never touched, even if you name it: uncommitted changes, a worktree a running process is sitting in, a file changed in the last hour, recent history, a live database.</p></div></li>
+    </ul>
+    <p>The worktree verdict comes from git itself: <code>status --porcelain</code>, then <code>rev-list HEAD --not --branches --tags --remotes</code>, with optional locks off so it never fights a running agent for <code>index.lock</code>.</p>
+  </div>
+</section>
+
+<section class="layer s-loam" id="clean" aria-labelledby="h-clean">
+  <div class="in">
+    <p class="ctx"><span>203</span>context</p>
+    <h2 id="h-clean">Shovel only what is safe</h2>
+    <p class="lead"><code>clean</code> prints the plan and stops. Add <code>--yes</code> to do it.</p>
+<pre class="term" tabindex="0" aria-label="spoilheap clean --safe output"><b>$ spoilheap clean --safe</b>
+plan (dry run)
+  [102] <span class="v v-safe">SAFE</span>   Codex crash dumps                 28.5 GB  delete 100 entries under ~/Library/Application Support/Codex/Crashpad
+  [107] <span class="v v-safe">SAFE</span>   build output target/               5.0 GB  delete ~/.codex/worktrees/c903/payments/target
+  [109] <span class="v v-safe">SAFE</span>   worktree payments (detached)         4 KB  git -C ~/code/payments worktree remove ~/.codex/worktrees/a41f/payments
+  [127] <span class="v v-safe">SAFE</span>   payments: 6 half-written git packs 12.0 GB  delete 6 entries under ~/code/payments/.git/objects/pack
+  [128] <span class="v v-safe">SAFE</span>   payments: 1 stale worktree registration —  git -C ~/code/payments worktree prune
+  <span class="dim">… 7 more</span>
+
+dry run: would free 56.5 GB. Nothing was deleted. Run the same command with --yes to do it.</pre>
+    <ul class="rules">
+      <li>Worktrees go through <code>git worktree remove</code> without <code>--force</code>, after a fresh re-check. If git refuses, spoilheap stops and shows you why.</li>
+      <li>Databases are never edited. <code>spoilheap clean 122</code> prints the <code>VACUUM</code> command and how much free space it needs while it runs.</li>
+      <li>A KEEP item named on the command line is skipped, with its reason.</li>
+      <li>It deletes only inside the folder the item came from, then measures free space again and tells you if the disk got back less than planned (open files, snapshots).</li>
+      <li>Numbers like <code>104</code> come from your last <code>spoilheap</code> run, so they always point at what you just read.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="layer s-gravel" id="watch" aria-labelledby="h-watch">
+  <div class="in">
+    <p class="ctx"><span>204</span>context</p>
+    <h2 id="h-watch">Catch the layer while it is still growing</h2>
+    <p class="lead">One reported Codex run wrote 263.7 GB of <code>tmp_pack</code> garbage before the disk filled (<a href="https://github.com/openai/codex/issues/54955">openai/codex#54955</a>). <code>watch</code> names the folder, the newest file and the process chain writing it.</p>
+<pre class="term" tabindex="0" aria-label="spoilheap watch output"><b>$ spoilheap watch --rate 500MB</b>
+watching 6 locations every 10 s · alarm at 500.0 MB/min or under 10.0 GB free · Ctrl-C to stop
+10:36:42  + 240.0 MB      7.2 GB/min  ~/code/payments/.git/objects/pack  <span class="v v-run">RUNAWAY</span>
+          newest file: ~/code/payments/.git/objects/pack/tmp_pack_live9f
+          writer: python3[1610135] ← bash[1609933] ← node[1525768]
+10:36:44  + 180.0 MB      5.3 GB/min  ~/code/payments/.git/objects/pack  <span class="v v-run">RUNAWAY</span></pre>
+    <p class="small">Recorded on the demo home while a script appended to a pack file. Writers come from <code>/proc/*/fd</code> on Linux and <code>lsof</code> on macOS.</p>
+  </div>
+</section>
+
+<section class="layer s-clay" id="guard" aria-labelledby="h-guard">
+  <div class="in">
+    <p class="ctx"><span>205</span>context</p>
+    <h2 id="h-guard">Stop digging at the datum line</h2>
+    <p class="lead">A full disk does more than stop the build: it has corrupted OpenCode's session database (<a href="https://github.com/anomalyco/opencode/issues/56829">anomalyco/opencode#56829</a>) and kept even cleanup commands from starting (<a href="https://github.com/openai/codex/issues/55038">openai/codex#55038</a>). <code>spoilheap guard</code> runs as a PreToolUse hook and blocks the agent's next tool call when free space falls under your floor.</p>
+    <div class="datumfig" aria-hidden="true"><span class="df-line"></span><span class="df-label">floor 10 GB</span></div>
+<pre class="term" tabindex="0" aria-label="spoilheap hook claude output"><b>$ spoilheap hook claude</b>   <span class="dim"># paste into ~/.claude/settings.json</span>
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [{ "type": "command", "command": "spoilheap guard --floor 10GB", "timeout": 30 }]
+      }
+    ]
+  }
+}</pre>
+    <p>What the agent sees when it trips (exit code 2, message on stderr):</p>
+<pre class="term" tabindex="0" aria-label="guard message"><span class="v v-run">spoilheap guard</span>: only 3.1 GB free on ~/code/payments (floor 10.0 GB). Stop and tell the user before
+writing anything else: a full disk corrupts agent databases (anomalyco/opencode#56829) and can
+stop even cleanup commands from starting (openai/codex#55038).
+Agent leftovers that are SAFE to delete (56.5 GB in total):
+  [102] Codex crash dumps · 28.5 GB · ~/Library/Application Support/Codex/Crashpad
+  [127] payments: 6 half-written git packs · 12.0 GB · ~/code/payments/.git/objects/pack
+  [110] build output target/ · 6.5 GB · ~/.codex/worktrees/a41f/payments/target
+Ask the user to run: spoilheap clean --safe --yes</pre>
+    <p><code>spoilheap hook codex</code> prints the same thing for <code>~/.codex/config.toml</code>; the exit-code-2 contract was checked against <code>codex-rs/hooks/src/events/pre_tool_use.rs</code>.</p>
+  </div>
+</section>
+
+<section class="layer s-humus" id="mcp" aria-labelledby="h-mcp">
+  <div class="in">
+    <p class="ctx"><span>206</span>context</p>
+    <h2 id="h-mcp">Let the agent look, not dig</h2>
+    <p class="lead"><code>spoilheap mcp</code> is a read-only MCP server with two tools, <code>disk_status</code> and <code>disk_leftovers</code>. There is no delete tool: the shovel stays with you.</p>
+<pre class="term" tabindex="0" aria-label="MCP config"><b>$ claude mcp add spoilheap -- spoilheap mcp</b>
+<span class="dim"># or, any client:</span>  { "mcpServers": { "spoilheap": { "command": "spoilheap", "args": ["mcp"] } } }</pre>
+  </div>
+</section>
+
+<section class="layer s-sand" id="install" aria-labelledby="h-install">
+  <div class="in">
+    <p class="ctx"><span>207</span>context</p>
+    <h2 id="h-install">Install</h2>
+<pre class="term" tabindex="0" aria-label="install commands"><b>$ curl -fsSL https://blackman99.github.io/spoilheap/install.sh | sh</b>   <span class="dim"># Linux, macOS; checks SHA-256</span>
+<b>$ cargo install --git https://github.com/Blackman99/spoilheap</b>
+<span class="dim"># Windows: spoilheap-v0.1.0-x86_64-pc-windows-msvc.zip from the release page</span>
+<b>$ spoilheap</b>   <span class="dim"># look first. It deletes nothing.</span></pre>
+    <p>One static binary, no runtime. Linux x86_64 and aarch64 (musl), macOS arm64 and x86_64, Windows x86_64. <a href="https://github.com/Blackman99/spoilheap/releases">Releases</a> · <a href="docs/">Docs</a> · <a href="https://github.com/Blackman99/spoilheap/blob/main/ROADMAP.md">Roadmap</a> · MIT.</p>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <p>spoilheap: in archaeology, the pile of earth dug out of a trench. Made by <a href="https://github.com/Blackman99">Blackman99</a>. Not affiliated with OpenAI, Anthropic, Google, Cline or the OpenCode project.</p>
+</footer>
+<script src="app.js" defer></script>
+</body>
+</html>
