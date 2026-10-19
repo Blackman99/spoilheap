@@ -83,6 +83,9 @@ pub fn run(env: &Env, opts: &Opts, w: &WatchOpts, st: &Style) -> i32 {
     let mut t0 = Instant::now();
     let mut tick = 0u64;
     let mut quiet_since = Instant::now();
+    // what we last said about each target, so a steady runaway prints its details once
+    let mut said: Vec<String> = vec![String::new(); tg.len()];
+    let mut floor_said: Option<Instant> = None;
     loop {
         std::thread::sleep(w.every);
         tick += 1;
@@ -109,28 +112,37 @@ pub fn run(env: &Env, opts: &Opts, w: &WatchOpts, st: &Style) -> i32 {
             if delta > 0 && per_min >= w.rate {
                 println!("{}", st.red(&format!("{line}  RUNAWAY")));
                 let files = newest_files(t, 12);
-                if let Some(f) = files.first() {
-                    println!("          newest file: {}", env.tilde(f));
-                }
                 let ps = procs::list();
                 let pids = procs::writers(t, &files);
+                let mut detail = String::new();
+                if let Some(f) = files.first() {
+                    detail.push_str(&format!("          newest file: {}\n", env.tilde(f)));
+                }
                 if pids.is_empty() {
-                    println!(
-                        "          {}",
+                    detail.push_str(&format!(
+                        "          {}\n",
                         st.dim(
                             "no process has a file open there right now (it may write in bursts)"
                         )
-                    );
+                    ));
                 }
                 for p in pids.iter().take(4) {
-                    println!("          writer: {}", procs::chain(&ps, *p));
+                    detail.push_str(&format!("          writer: {}\n", procs::chain(&ps, *p)));
+                }
+                if detail != said[i] {
+                    print!("{detail}");
+                    said[i] = detail;
                 }
             } else {
+                said[i].clear();
                 println!("{line}");
             }
         }
         for c in crate::guard::checks(env, &[], w.floor) {
-            if c.space.free < c.floor {
+            if c.space.free < c.floor
+                && floor_said.is_none_or(|t| t.elapsed() >= Duration::from_secs(60))
+            {
+                floor_said = Some(Instant::now());
                 println!(
                     "{}",
                     st.red(&format!(
