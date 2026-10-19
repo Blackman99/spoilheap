@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t">
+  <title id="t">spoilheap: a spoil heap with a ranging rod and a SAFE flag</title>
+  <defs>
+    <clipPath id="mound"><path d="M20 440 C70 420 104 372 136 318 C162 272 184 222 214 196 C236 177 258 178 276 190 C300 206 316 232 338 262 C372 308 420 372 492 440 Z"/></clipPath>
+  </defs>
+  <!-- the heap: reversed strata, the topsoil dug first ends up at the bottom -->
+  <g clip-path="url(#mound)">
+    <rect x="0" y="160" width="512" height="300" fill="#cfa962"/>
+    <path d="M0 296 C80 284 150 312 236 298 C320 284 400 310 512 292 V460 H0 Z" fill="#9c5b3b"/>
+    <path d="M0 360 C110 346 170 374 262 358 C350 344 420 368 512 352 V460 H0 Z" fill="#6e4f37"/>
+    <path d="M0 404 C120 394 200 414 290 402 C380 390 440 410 512 398 V460 H0 Z" fill="#3a2b22"/>
+    <g fill="#5d544b"><ellipse cx="200" cy="262" rx="10" ry="6"/><ellipse cx="282" cy="246" rx="6" ry="4"/><ellipse cx="160" cy="336" rx="8" ry="5"/><ellipse cx="318" cy="326" rx="10" ry="6"/><ellipse cx="236" cy="382" rx="9" ry="5"/></g>
+    <g fill="#b9ab97"><ellipse cx="246" cy="224" rx="5" ry="3.5"/><ellipse cx="372" cy="344" rx="6" ry="4"/><ellipse cx="112" cy="398" rx="6" ry="4"/><ellipse cx="270" cy="314" rx="4" ry="3"/></g>
+  </g>
+  <!-- ranging rod planted in the right flank, in front of the heap -->
+  <g transform="rotate(9 392 400)" stroke="#151413" stroke-width="5">
+    <rect x="380" y="92" width="26" height="308" fill="#f4f2ee"/>
+    <rect x="380" y="92" width="26" height="62" fill="#d0312d"/>
+    <rect x="380" y="216" width="26" height="62" fill="#d0312d"/>
+    <rect x="380" y="340" width="26" height="60" fill="#d0312d"/>
+  </g>
+  <!-- earth pushed up around the rod's foot, so it reads as planted -->
+  <path d="M362 404 C372 388 384 382 396 384 C410 386 420 394 428 408 C406 412 382 412 362 404 Z" fill="#6e4f37"/>
+  <path d="M356 410 C380 402 412 402 436 412 L440 420 L352 420 Z" fill="#3a2b22"/>
+  <!-- SAFE pin flag on the summit -->
+  <path d="M246 186 V78" stroke="#8c8679" stroke-width="8" stroke-linecap="round"/>
+  <path d="M249 80 L330 104 L249 130 Z" fill="#a6d13c" stroke="#151413" stroke-width="4" stroke-linejoin="round"/>
+</svg>
