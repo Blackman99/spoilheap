@@ -296,6 +296,11 @@ fn mount_point(p: &std::path::Path) -> PathBuf {
 }
 
 fn main() {
+    // behave like other CLI tools when piped into `head`: exit quietly on a closed pipe
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
     let a = match parse() {
         Ok(a) => a,
         Err(e) => {

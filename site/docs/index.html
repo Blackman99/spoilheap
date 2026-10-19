@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spoilheap docs: install, usage, verdicts, reference, FAQ</title>
+<meta name="description" content="How spoilheap finds coding-agent leftovers, how it decides SAFE / REVIEW / KEEP, every command and flag, the paths it reads, JSON output, the guard hook and the MCP server.">
+<link rel="canonical" href="https://blackman99.github.io/spoilheap/docs/">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#1f1b18">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spoilheap docs">
+<meta property="og:description" content="Install, usage, verdict rules, commands, paths, JSON, guard hook, MCP, FAQ.">
+<meta property="og:url" content="https://blackman99.github.io/spoilheap/docs/">
+<meta property="og:image" content="https://blackman99.github.io/spoilheap/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://blackman99.github.io/spoilheap/og.png">
+<link rel="stylesheet" href="../fonts.css">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../"><img src="../favicon.svg" alt="" width="26" height="26"><span>spoilheap</span></a>
+  <nav aria-label="Main"><a href="../">Home</a><a href="https://github.com/Blackman99/spoilheap">GitHub</a><a href="https://github.com/Blackman99/spoilheap/releases">Releases</a></nav>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="On this page">
+  <p>Contents</p>
+  <ol>
+    <li><a href="#install">Install</a></li>
+    <li><a href="#start">First run</a></li>
+    <li><a href="#verdicts">How verdicts are made</a></li>
+    <li><a href="#clean">clean</a></li>
+    <li><a href="#watch">watch</a></li>
+    <li><a href="#guard">guard and hooks</a></li>
+    <li><a href="#mcp">MCP server</a></li>
+    <li><a href="#paths">Paths it reads</a></li>
+    <li><a href="#config">Options and environment</a></li>
+    <li><a href="#json">JSON output</a></li>
+    <li><a href="#exit">Exit codes</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  </ol>
+</nav>
+<main>
+<h1>spoilheap docs</h1>
+<p class="lead">spoilheap lists what Codex, Claude Code, OpenCode, Gemini CLI and Cline left on your disk, gives every item a verdict (<b class="v v-safe">SAFE</b>, <b class="v v-review">REVIEW</b>, <b class="v v-keep">KEEP</b>) with the reason, clears only what you ask for, and can block an agent before the disk fills. Running <code>spoilheap</code> on its own never changes anything.</p>
+
+<section id="install"><h2><span>01</span>Install</h2>
+<pre><code>curl -fsSL https://blackman99.github.io/spoilheap/install.sh | sh</code></pre>
+<p>The script picks the release binary for your OS and CPU, checks it against <code>checksums.txt</code>, and puts it in <code>~/.local/bin</code>. Set <code>SPOILHEAP_BIN=/usr/local/bin</code> to put it somewhere else, or <code>SPOILHEAP_VERSION=v0.1.0</code> to pin a version.</p>
+<p>From source (Rust 1.85 or newer): <code>cargo install --git https://github.com/Blackman99/spoilheap</code></p>
+<p>By hand: download the archive for your platform from <a href="https://github.com/Blackman99/spoilheap/releases">Releases</a>. Linux x86_64 and aarch64 builds are static (musl). macOS builds are for arm64 and x86_64; Windows for x86_64.</p>
+</section>
+
+<section id="start"><h2><span>02</span>First run</h2>
+<pre><code>spoilheap                 # look. Deletes nothing.
+spoilheap clean --safe    # print the plan for every SAFE item
+spoilheap clean --safe --yes
+spoilheap clean 101 104   # REVIEW items, by number, after you have read them</code></pre>
+<p>Every item gets a number from 101 up, like a context number in a dig. The numbers are saved, so <code>spoilheap clean 104</code> means the item you just saw as <code>[104]</code>, even if you open a new terminal. If the item has changed or gone since then, spoilheap says so instead of guessing.</p>
+<p>Repositories are searched under the current folder and under <code>~/code ~/src ~/projects ~/dev ~/work ~/Developer ~/repos</code> when those exist, four levels deep. Point it elsewhere with <code>--root DIR</code> (repeatable) and <code>--depth N</code>.</p>
+</section>
+
+<section id="verdicts"><h2><span>03</span>How verdicts are made</h2>
+<table>
+<thead><tr><th>Item</th><th>Verdict</th><th>Rule</th></tr></thead>
+<tbody>
+<tr><td>Crash dumps (Codex, ChatGPT, Claude, Cursor desktop apps)</td><td><b class="v v-safe">SAFE</b></td><td>Always. If 30 or more appeared in the last hour, the reason says the app is crash-looping and to quit it first.</td></tr>
+<tr><td>Agent worktree, clean, every commit reachable from another branch, tag or remote, untouched for 1 h</td><td><b class="v v-safe">SAFE</b></td><td>Removed with <code>git worktree remove</code>.</td></tr>
+<tr><td>Agent worktree with commits found nowhere else</td><td><b class="v v-review">REVIEW</b></td><td><code>git rev-list --count HEAD --not --exclude=&lt;branch&gt; --branches --tags --remotes</code>; the reason gives the count.</td></tr>
+<tr><td>Agent worktree a file changed in within the last hour</td><td><b class="v v-review">REVIEW</b></td><td>An agent may still be working in it.</td></tr>
+<tr><td>Folder that looks like a worktree but git no longer lists it</td><td><b class="v v-review">REVIEW</b></td><td>Its repo was moved or pruned, or it is a copy. Removed as a plain folder only if you name it.</td></tr>
+<tr><td>Agent worktree with uncommitted changes</td><td><b class="v v-keep">KEEP</b></td><td><code>git status --porcelain</code> is not empty.</td></tr>
+<tr><td>Agent worktree a running process is sitting in</td><td><b class="v v-keep">KEEP</b></td><td>Some process has its working directory inside it (<code>/proc/*/cwd</code> on Linux, <code>lsof</code> on macOS).</td></tr>
+<tr><td><code>target/</code>, <code>node_modules/</code>, <code>.venv/</code> … inside an agent worktree</td><td><b class="v v-safe">SAFE</b></td><td>Only when git says the folder is ignored and tracks no file in it. Listed apart from the worktree, so a KEEP worktree can still lose its build output.</td></tr>
+<tr><td><code>tmp_pack_*</code>, <code>tmp_idx_*</code>, <code>.tmp-*</code> in <code>.git/objects/pack</code></td><td><b class="v v-safe">SAFE</b></td><td>Untouched for 1 h (a git that is still writing gets left alone).</td></tr>
+<tr><td>Stale worktree registrations</td><td><b class="v v-safe">SAFE</b></td><td><code>git worktree prune</code>.</td></tr>
+<tr><td>Session history, transcripts, file history, snapshots, task folders</td><td><b class="v v-review">REVIEW</b> / <b class="v v-keep">KEEP</b></td><td>Older than <code>--older</code> (default 30 d) is REVIEW, newer is KEEP.</td></tr>
+<tr><td>Logs, debug logs, shell snapshots</td><td><b class="v v-safe">SAFE</b></td><td>Older than 1 day.</td></tr>
+<tr><td>SQLite database (OpenCode, Codex logs)</td><td><b class="v v-review">REVIEW</b> / <b class="v v-keep">KEEP</b></td><td>Free pages are read from the file header (freelist count × page size). REVIEW when at least 500 MB is free, or 20 % and 50 MB; it prints the <code>VACUUM</code> command and the free space VACUUM needs. Never edited by spoilheap.</td></tr>
+</tbody>
+</table>
+<p>All git commands run with <code>GIT_OPTIONAL_LOCKS=0</code>, so spoilheap never takes <code>index.lock</code> from an agent that is working.</p>
+</section>
+
+<section id="clean"><h2><span>04</span>clean</h2>
+<pre><code>spoilheap clean --safe [--yes]
+spoilheap clean 104 107 [--yes]
+spoilheap clean --safe 113 --yes      # every SAFE item plus REVIEW item 113</code></pre>
+<ul>
+<li>Without <code>--yes</code> it prints the plan and the total, and deletes nothing.</li>
+<li>KEEP items are skipped even when named, and the reason is shown.</li>
+<li>Worktrees are re-checked right before removal, then removed with <code>git worktree remove</code> (no <code>--force</code>). If git refuses, that item fails and the rest go on; the exit code is 1.</li>
+<li>Files are deleted only inside the folder the item came from; empty parent folders are tidied up to that folder and no further.</li>
+<li>Databases print a command for you to run when the app is closed, for example <code>sqlite3 '~/.local/share/opencode/opencode.db' 'VACUUM;'</code>.</li>
+<li>After a real run it measures free space again. If the disk got back less than 70 % of the plan, it says why that usually happens (a process still holds deleted files open, or a filesystem snapshot keeps the blocks).</li>
+</ul>
+</section>
+
+<section id="watch"><h2><span>05</span>watch</h2>
+<pre><code>spoilheap watch [--every 10s] [--rate 1GB] [--floor 10GB]</code></pre>
+<p>Measures the agent folders and every repo's <code>.git/objects/pack</code> on each tick. A location that grows faster than <code>--rate</code> per minute is printed as <code>RUNAWAY</code> with its newest file and the process chain that has files open there (from <code>/proc/*/fd</code> on Linux, <code>lsof</code> on macOS), once per change. Free space under <code>--floor</code> is reported at most once a minute. A quiet line with the free space is printed every minute when nothing moves.</p>
+</section>
+
+<section id="guard"><h2><span>06</span>guard and hooks</h2>
+<pre><code>spoilheap guard [--floor 10GB | --floor 5%] [--path DIR]
+spoilheap hook claude     # prints the settings.json block
+spoilheap hook codex      # prints the config.toml block</code></pre>
+<p><code>guard</code> exits 0 when free space is at or above the floor on the home folder and on the folder the agent is working in (read from the hook's JSON on stdin, field <code>cwd</code>, or <code>--path</code>). Under the floor it exits 2 and writes a message to stderr naming the three biggest SAFE items and the command to clear them. Claude Code and Codex both treat exit code 2 from a PreToolUse hook as "block this tool call and show the message to the model".</p>
+<p>Codex hooks are behind a feature flag; the printed block sets <code>[features] hooks = true</code>. Codex also reads <code>~/.codex/hooks.json</code> if you prefer JSON.</p>
+</section>
+
+<section id="mcp"><h2><span>07</span>MCP server</h2>
+<pre><code>claude mcp add spoilheap -- spoilheap mcp
+codex mcp add spoilheap -- spoilheap mcp
+{ "mcpServers": { "spoilheap": { "command": "spoilheap", "args": ["mcp"] } } }</code></pre>
+<p>Stdio JSON-RPC, protocol 2025-06-18. Two tools, both marked read-only:</p>
+<ul>
+<li><code>disk_status { path?, floor? }</code>: free and total bytes for the filesystem holding <code>path</code> (default: home), and whether it is under <code>floor</code> (default 10GB).</li>
+<li><code>disk_leftovers { min_bytes? }</code>: the same report as <code>spoilheap --json</code>, with verdicts and reasons.</li>
+</ul>
+<p>There is no delete tool. The agent can tell you what to run; you run it.</p>
+</section>
+
+<section id="paths"><h2><span>08</span>Paths it reads</h2>
+<table>
+<thead><tr><th>Agent</th><th>Where</th></tr></thead>
+<tbody>
+<tr><td>Codex</td><td><code>$CODEX_HOME</code> (default <code>~/.codex</code>): <code>worktrees/</code>, <code>sessions/</code>, <code>archived_sessions/</code>, <code>log/</code>, <code>.tmp/</code>, <code>logs_*.sqlite</code>. Crash dumps from the desktop apps (Codex, ChatGPT, Claude, Cursor) in each app's data folder: <code>~/Library/Application Support/&lt;App&gt;/Crashpad</code> on macOS, <code>%APPDATA%\&lt;App&gt;\Crashpad</code> on Windows, <code>~/.config/&lt;App&gt;/Crashpad</code> on Linux. Old bun-installed builds in <code>~/.bun/install/cache/@openai</code>.</td></tr>
+<tr><td>Claude Code</td><td><code>$CLAUDE_CONFIG_DIR</code> (default <code>~/.claude</code>): <code>projects/</code>, <code>file-history/</code>, <code>shell-snapshots/</code>, <code>debug/</code>; <code>&lt;repo&gt;/.claude/worktrees</code>.</td></tr>
+<tr><td>OpenCode</td><td><code>$XDG_DATA_HOME/opencode</code> (default <code>~/.local/share/opencode</code>): <code>opencode*.db</code> (+ WAL) or <code>$OPENCODE_DB</code>, <code>snapshot/&lt;project&gt;</code>, <code>storage/</code>, <code>log/</code>.</td></tr>
+<tr><td>Gemini CLI</td><td><code>~/.gemini/tmp/&lt;project hash&gt;</code>.</td></tr>
+<tr><td>Cline</td><td><code>globalStorage/saoudrizwan.claude-dev/{tasks,checkpoints}</code> under VS Code, Cursor, Windsurf and VSCodium user folders, and <code>~/.cline/data</code>.</td></tr>
+<tr><td>Aider</td><td><code>&lt;repo&gt;/.aider.tags.cache.v4</code>.</td></tr>
+</tbody>
+</table>
+<p><code>spoilheap paths</code> prints each one with <code>found</code> or <code>absent</code> for your machine. Sizes are allocated blocks; hard links are counted once; symlinks are never followed; scans stay on one filesystem.</p>
+</section>
+
+<section id="config"><h2><span>09</span>Options and environment</h2>
+<table>
+<thead><tr><th>Flag</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>--root DIR</code></td><td>Look for repositories here (repeatable).</td></tr>
+<tr><td><code>--depth N</code></td><td>How deep under each root (default 4).</td></tr>
+<tr><td><code>--older D</code></td><td>History older than this is REVIEW (default <code>30d</code>; units s m h d w).</td></tr>
+<tr><td><code>--all</code></td><td>Also list items under 1 MB.</td></tr>
+<tr><td><code>--json</code></td><td>Machine-readable output.</td></tr>
+<tr><td><code>--home DIR</code></td><td>Treat DIR as the home folder.</td></tr>
+<tr><td><code>--no-color</code></td><td>Plain output.</td></tr>
+</tbody>
+</table>
+<table>
+<thead><tr><th>Variable</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>CODEX_HOME</code>, <code>CLAUDE_CONFIG_DIR</code>, <code>XDG_DATA_HOME</code>, <code>OPENCODE_DB</code></td><td>Same meaning as for the agents themselves.</td></tr>
+<tr><td><code>XDG_CACHE_HOME</code></td><td>Where the last run's item numbers are kept (<code>spoilheap/last.json</code>; <code>~/Library/Caches</code> on macOS, <code>%LOCALAPPDATA%</code> on Windows).</td></tr>
+<tr><td><code>NO_COLOR</code>, <code>FORCE_COLOR</code>, <code>COLUMNS</code></td><td>Output styling and width.</td></tr>
+<tr><td><code>SPOILHEAP_VACUUM_MIN</code></td><td>Lower the "worth a VACUUM" bar (default 50MB, with 20 %).</td></tr>
+<tr><td><code>SPOILHEAP_FAKE_FREE=3GB/500GB</code></td><td>Pretend this much is free (for testing guard and hooks).</td></tr>
+<tr><td><code>SPOILHEAP_OS</code>, <code>SPOILHEAP_HOME</code>, <code>SPOILHEAP_APPARENT_SIZE</code></td><td>Test knobs: use another OS's path layout, another home, or count file length instead of blocks (for sparse demo files).</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="json"><h2><span>10</span>JSON output</h2>
+<pre><code>{
+  "tool": "spoilheap", "version": "0.1.0", "generated_at": "2026-10-19T02:41:07Z",
+  "disks": [{ "path": "/", "total_bytes": 494000000000, "free_bytes": 3100000000 }],
+  "totals": { "bytes": 117074251949, "safe_reclaimable_bytes": 56524587087,
+              "review_reclaimable_bytes": 54193328174, "keep_bytes": 6186614832 },
+  "repos_scanned": 1,
+  "items": [{
+    "id": 127, "harness": "repo", "kind": "tmp-pack",
+    "label": "payments: 6 half-written git packs",
+    "path": "/Users/you/code/payments/.git/objects/pack",
+    "bytes": 11952000000, "reclaimable_bytes": 11952000000, "files": 6,
+    "newest_age_s": 172800, "oldest_age_s": 172800,
+    "verdict": "SAFE",
+    "reason": "tmp_pack_* from a git that died mid-write (openai/codex#54955); untouched for 1 h+",
+    "action": { "type": "remove", "paths": 6 }, "parent": null
+  }],
+  "notes": []
+}</code></pre>
+<p><code>action.type</code> is one of <code>remove</code>, <code>git-worktree-remove</code>, <code>git-worktree-prune</code>, <code>manual</code> (with <code>command</code>) or <code>none</code>. <code>parent</code> is the id of the worktree a build-output item sits in.</p>
+</section>
+
+<section id="exit"><h2><span>11</span>Exit codes</h2>
+<table><tbody>
+<tr><td><code>0</code></td><td>Done (for <code>guard</code>: enough free space).</td></tr>
+<tr><td><code>1</code></td><td><code>clean</code>: at least one item could not be removed.</td></tr>
+<tr><td><code>2</code></td><td><code>guard</code>: under the floor; the hook blocks the tool call.</td></tr>
+<tr><td><code>64</code></td><td>Usage error: unknown flag or command, bad number. The message suggests the nearest flag.</td></tr>
+</tbody></table>
+</section>
+
+<section id="faq"><h2><span>12</span>FAQ</h2>
+<h3>Is it safe to run?</h3>
+<p><code>spoilheap</code>, <code>paths</code>, <code>watch</code>, <code>guard</code> and <code>mcp</code> only read. Only <code>clean … --yes</code> deletes, and only items you selected, inside the folders they came from.</p>
+<h3>Why does the disk not get back everything clean promised?</h3>
+<p>A running app may hold deleted files open (the space comes back when it quits), or a filesystem snapshot (APFS local snapshots, Btrfs, ZFS) may keep the blocks. spoilheap measures before and after and says when this happened.</p>
+<h3>Why does it not delete old chats by itself?</h3>
+<p>Because you might want them: <code>codex resume</code>, Claude Code's <code>/resume</code> and Cline's task history all read them. They are REVIEW so you decide, with the age and size in front of you.</p>
+<h3>Why not just run VACUUM for me?</h3>
+<p>VACUUM rewrites the file and needs roughly its live size in free space while it runs. On a nearly full disk, with the agent possibly running, that is how databases get corrupted. You run it when the app is closed.</p>
+<h3>Does it know about my other agent?</h3>
+<p>If it keeps data under its own folder, open an issue with the path and a link to the source or docs that define it. Paths are only added from the agent's own source or docs.</p>
+<h3>Does it send anything anywhere?</h3>
+<p>No. No network, no telemetry. The only file it writes outside <code>clean</code> is the id map in the cache folder.</p>
+</section>
+</main>
+</div>
+<footer class="foot"><p>spoilheap · MIT · <a href="https://github.com/Blackman99/spoilheap">github.com/Blackman99/spoilheap</a></p></footer>
+</body>
+</html>

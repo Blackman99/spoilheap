@@ -98,7 +98,7 @@ pub fn clip(s: &str, max: usize) -> String {
     format!("{a}…{b}")
 }
 
-fn wrap(text: &str, width: usize, indent: usize) -> Vec<String> {
+pub fn wrap(text: &str, width: usize, indent: usize) -> Vec<String> {
     let mut lines = vec![];
     let mut cur = String::new();
     for w in text.split(' ') {

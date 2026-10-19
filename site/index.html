@@ -87,8 +87,8 @@
     <h2 id="h-flags">Three flags, and why each one is planted</h2>
     <ul class="flags">
       <li><i class="pin pin-safe" aria-hidden="true"></i><div><h3>SAFE</h3><p>Garbage, or rebuildable in one command: crash dumps, a worktree that is clean and whose commits are all on another branch, tag or remote, git-ignored <code>target/</code> and <code>node_modules/</code> inside it, <code>tmp_pack_*</code> untouched for an hour, logs older than a day.</p></div></li>
-      <li><i class="pin pin-review" aria-hidden="true"></i><div><h3>REVIEW</h3><p>Yours to judge: chats older than <code>--older 30d</code>, a worktree with commits that exist nowhere else (it says how many), a worktree git no longer knows about, a SQLite file with hundreds of MB of free pages.</p></div></li>
-      <li><i class="pin pin-keep" aria-hidden="true"></i><div><h3>KEEP</h3><p>Never touched, even if you name it: uncommitted changes, a worktree a running process is sitting in, a file changed in the last hour, recent history, a live database.</p></div></li>
+      <li><i class="pin pin-review" aria-hidden="true"></i><div><h3>REVIEW</h3><p>Yours to judge: chats older than <code>--older 30d</code>, a worktree with commits that exist nowhere else (it says how many), a worktree touched in the last hour, a worktree git no longer knows about, a SQLite file with hundreds of MB of free pages.</p></div></li>
+      <li><i class="pin pin-keep" aria-hidden="true"></i><div><h3>KEEP</h3><p>Never touched, even if you name it: uncommitted changes, a worktree a running process is sitting in, recent history, a database that is not worth a VACUUM.</p></div></li>
     </ul>
     <p>The worktree verdict comes from git itself: <code>status --porcelain</code>, then <code>rev-list HEAD --not --branches --tags --remotes</code>, with optional locks off so it never fights a running agent for <code>index.lock</code>.</p>
   </div>

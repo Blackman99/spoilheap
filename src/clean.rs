@@ -133,6 +133,10 @@ pub fn run(env: &Env, rep: &Report, ch: &Choice, st: &Style) -> i32 {
         "{}",
         st.bold(if ch.yes { "clearing" } else { "plan (dry run)" })
     );
+    // one layout for the whole plan: actions on the item line if they all fit, else below
+    let inline = chosen
+        .iter()
+        .all(|i| 71 + describe(env, i).chars().count() <= st.width);
     for it in &chosen {
         let tag = format!("[{}]", it.id);
         if it.verdict == Verdict::Keep {
@@ -157,18 +161,26 @@ pub fn run(env: &Env, rep: &Report, ch: &Choice, st: &Style) -> i32 {
             continue;
         }
         let what = describe(env, it);
-        println!(
-            "  {} {} {:<44} {:>9}  {}",
+        let size = if it.reclaim == 0 {
+            "—".to_string()
+        } else {
+            units::bytes(it.reclaim)
+        };
+        let head = format!(
+            "  {} {} {:<44} {:>9}",
             st.dim(&tag),
             st.verdict(it.verdict),
             crate::render::clip(&it.label, 44),
-            if it.reclaim == 0 {
-                "—".to_string()
-            } else {
-                units::bytes(it.reclaim)
-            },
-            st.dim(&what)
+            size
         );
+        // 2 + "[101]" + 1 + verdict 6 + 1 + 44 + 1 + 9 = 69 visible columns
+        if inline {
+            println!("{head}  {}", st.dim(&what));
+        } else {
+            println!("{head}");
+            let lines = crate::render::wrap(&what, st.width.saturating_sub(10).max(30), 10);
+            println!("        {}", st.dim(&format!("→ {}", lines.join("\n"))));
+        }
         planned += it.reclaim;
         if !ch.yes {
             continue;
