@@ -52,6 +52,15 @@ impl Style {
     pub fn yellow(&self, s: &str) -> String {
         self.paint("33", s)
     }
+    /// The verdict word in its colour, without the column padding.
+    pub fn verdict_word(&self, v: Verdict) -> String {
+        let code = match v {
+            Verdict::Safe => "1;32",
+            Verdict::Review => "1;33",
+            Verdict::Keep => "1;36",
+        };
+        self.paint(code, v.word())
+    }
     pub fn verdict(&self, v: Verdict) -> String {
         let w = format!("{:<6}", v.word());
         match v {
@@ -212,11 +221,11 @@ pub fn report(
         "agents {} in {} places · {} {} · {} {} · {} {}\n",
         st.bold(&units::bytes(all)),
         items.len(),
-        st.verdict(Verdict::Safe).trim_end(),
+        st.verdict_word(Verdict::Safe),
         st.bold(&units::bytes(safe)),
-        st.verdict(Verdict::Review).trim_end(),
+        st.verdict_word(Verdict::Review),
         units::bytes(review),
-        st.verdict(Verdict::Keep).trim_end(),
+        st.verdict_word(Verdict::Keep),
         units::bytes(keep),
     ));
     let size_w = 9;

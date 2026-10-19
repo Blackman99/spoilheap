@@ -146,7 +146,7 @@ pub fn run(env: &Env, opts: &Opts, w: &WatchOpts, st: &Style) -> i32 {
                 println!(
                     "{}",
                     st.red(&format!(
-                        "{clock}  only {} free on {} (floor {}): spoilheap clean --safe",
+                        "{clock}  LOW  only {} free on the disk holding {} (floor {}). `spoilheap clean --safe` shows what can go",
                         units::bytes(c.space.free),
                         env.tilde(&c.path),
                         units::bytes(c.floor)

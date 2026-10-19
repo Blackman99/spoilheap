@@ -123,7 +123,20 @@ pub fn run(env: &Env, floor: Amount, paths: Vec<PathBuf>, quiet_ok: bool) -> i32
         );
     }
     crate::out::save_ids(env, &rep);
-    eprint!("{msg}");
+    // an agent reads stderr through a pipe: one line per fact. A person at a terminal
+    // gets the same text wrapped at word boundaries instead of mid-word.
+    use std::io::IsTerminal;
+    if std::io::stderr().is_terminal() {
+        let w = crate::render::Style::stderr().width;
+        for line in msg.lines() {
+            let ind = line.len() - line.trim_start().len();
+            for l in crate::render::wrap(line.trim_start(), w.saturating_sub(ind + 1), ind + 2) {
+                eprintln!("{}{l}", " ".repeat(ind));
+            }
+        }
+    } else {
+        eprint!("{msg}");
+    }
     2
 }
 

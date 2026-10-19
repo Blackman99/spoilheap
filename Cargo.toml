@@ -10,7 +10,7 @@ homepage = "https://blackman99.github.io/spoilheap/"
 readme = "README.md"
 keywords = ["disk", "codex", "claude-code", "opencode", "cleanup"]
 categories = ["command-line-utilities", "filesystem", "development-tools"]
-exclude = ["site/", "assets/", "scripts/", ".github/"]
+exclude = ["site/", "assets/", "scripts/", "docs/", ".github/"]
 
 [dependencies]
 serde_json = "1"

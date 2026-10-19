@@ -10,4 +10,4 @@ First release.
 - `spoilheap watch`: names the folder that is growing, the file being written and the process chain writing it.
 - `spoilheap guard` + `spoilheap hook claude|codex`: a PreToolUse hook that blocks the agent's next tool call when free space drops under a floor.
 - `spoilheap mcp`: read-only MCP server (`disk_status`, `disk_leftovers`).
-- Prebuilt binaries for Linux (x86_64, aarch64, static musl), macOS (arm64, x86_64) and Windows (x86_64).
+- Prebuilt binaries for Linux (x86_64, aarch64, static musl), macOS (arm64, x86_64) and Windows (x86_64, arm64), with `checksums.txt` and an installer that verifies it.

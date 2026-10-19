@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Secrets pasted into agent chats
+    url: https://github.com/Blackman99/spillscan
+    about: spoilheap measures transcripts but never reads them; spillscan scans them for secrets.

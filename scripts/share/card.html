@@ -1,0 +1,103 @@
+<!doctype html>
+<!-- Share card source for site/og.png (1200x630) and site/social-preview.png (1280x640).
+     Render: scripts/share/render.sh  (headless Chrome at 2x, Lanczos downscale) -->
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../site/fonts.css">
+<style>
+:root{--char:#1f1b18;--humus:#3a2b22;--loam:#6e4f37;--clay:#9c5b3b;--sand:#cfa962;--gravel:#8c8679;--felt:#151413;--letter:#f1efe9;--alu:#c9cdd1;--rod:#d0312d;--rodw:#f4f2ee;--safe:#a6d13c;--review:#f07a1a;--keep:#2f6db5}
+*{box-sizing:border-box}html,body{margin:0;background:var(--char)}
+#c{position:relative;overflow:hidden;background:var(--char)}
+canvas{position:absolute;inset:0}
+.board{position:absolute;background:var(--felt);color:var(--letter);transform:rotate(-2deg);box-shadow:0 18px 30px rgba(0,0,0,.45),0 0 0 2px #0b0a09;
+  background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 4px)}
+.site{display:flex;justify-content:space-between;font:500 17px/1 'Barlow Condensed';letter-spacing:.32em;color:#cfcac0}
+.word{font:700 132px/0.9 'Barlow Condensed';letter-spacing:.035em;margin:22px 0 10px;color:var(--letter)}
+.sub{font:700 24px/1.05 'Barlow Condensed';letter-spacing:.075em;white-space:nowrap;color:var(--sand);text-transform:uppercase}
+.pitch{font:italic 400 23px/1.38 'Spectral';color:#e9e4da;margin:16px 0 0}
+.v{font:700 19px/1 'Barlow Condensed';letter-spacing:.08em;padding:2px 7px 1px;font-style:normal;color:var(--felt);border-radius:1px}
+.vs{background:var(--safe)}.vr{background:var(--review)}.vk{background:var(--keep);color:var(--rodw)}
+.url{margin-top:20px;font:500 19px/1 'Inconsolata';color:var(--alu);letter-spacing:.02em}
+.url b{color:var(--letter);font-weight:600}
+.tag{position:absolute;display:flex;align-items:center;height:30px;font:500 17px/1 'Barlow Condensed';letter-spacing:.03em;white-space:nowrap;filter:drop-shadow(0 3px 3px rgba(0,0,0,.35))}
+.tag .n{background:var(--felt);color:var(--letter);font-weight:700;height:100%;display:flex;align-items:center;padding:0 9px;letter-spacing:.06em}
+.tag .p{background:linear-gradient(#d7dade,#bfc4c9);color:#151413;height:100%;display:flex;align-items:center;gap:9px;padding:0 12px 0 10px}
+.tag .f{width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:13px solid}
+.tag b{font-weight:700;letter-spacing:.09em}
+.tag .gb{font-weight:700;margin-left:4px}
+.tag::before{content:"";width:22px;height:2px;background:#e8e4dc;margin-right:0}
+.tag::after{content:"";position:absolute;left:-4px;top:12px;width:7px;height:7px;border-radius:50%;background:#e8e4dc}
+.datum{position:absolute;height:0;border-top:3px dashed var(--safe)}
+.dl{position:absolute;font:700 15px/1 'Barlow Condensed';letter-spacing:.14em;background:var(--felt);color:var(--letter);padding:5px 8px 4px}
+</style></head><body>
+<div id="c"><canvas id="cv"></canvas>
+  <div class="board" id="board">
+    <div class="site"><span>SITE&nbsp;~/</span><span>CTX&nbsp;101–128</span><span>19&nbsp;OCT&nbsp;26</span></div>
+    <div class="word">SPOILHEAP</div>
+    <div class="sub">What your coding agents left on this disk</div>
+    <p class="pitch">Worktrees, crash dumps, half-written git packs, old chats, SQLite that never shrinks. Every layer flagged <span class="v vs">SAFE</span> <span class="v vr">REVIEW</span> or <span class="v vk">KEEP</span> with the reason. Only SAFE gets shovelled.</p>
+    <div class="url"><b>$ spoilheap</b> &nbsp;·&nbsp; blackman99.github.io/spoilheap</div>
+  </div>
+  <div id="tags"></div>
+  <div class="datum" id="datum"></div><div class="dl" id="dl">DATUM · GUARD FLOOR 10 GB</div>
+</div>
+<script>
+const q=new URLSearchParams(location.search), W=+q.get('w')||1200, H=+q.get('h')||630, dpr=devicePixelRatio||1;
+const C=document.getElementById('c'); C.style.width=W+'px'; C.style.height=H+'px';
+const cv=document.getElementById('cv'); cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px';
+const g=cv.getContext('2d'); g.scale(dpr,dpr);
+function rng(s){let a=s>>>0;return()=>{a|=0;a=(a+0x6d2b79f5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296}}
+function noise1(seed){const r=rng(seed),o=[[170,1],[64,.45],[23,.18]].map(([s,a])=>({s,a,v:Array.from({length:64},r)}));return x=>{let y=0;for(const k of o){const p=x/k.s,i=Math.floor(p),f=p-i,u=f*f*(3-2*f);y+=k.a*((k.v[i&63]*(1-u)+k.v[(i+1)&63]*u)*2-1)}return y/1.63}}
+const SOIL={humus:{b:'#3a2b22',d:['#2a1f19','#4b392d','#5d544b'],peb:.5,ps:[2,5]},loam:{b:'#6e4f37',d:['#5b412d','#85624a','#4a3627'],peb:1.4,ps:[2,6]},
+clay:{b:'#9c5b3b',d:['#8b5033','#ad6b4a','#7d4a31'],peb:.35,ps:[2,4]},sand:{b:'#cfa962',d:['#b9934f','#dfbd7d','#a88a55'],peb:.6,ps:[1.5,3.5]},
+gravel:{b:'#8c8679',d:['#77726a','#a39d91','#6a645b'],peb:7,ps:[2.5,8]},natural:{b:'#f4f2ee',d:['#dcd8d0','#c9c4ba','#e6e3dc'],peb:.9,ps:[3,9]}};
+const PEB=['#b9ab97','#5d544b','#6e4f37','#8c8679'];
+const r=rng(19102026);
+const ground=Math.round(H*.25);
+// strata (top→bottom), thickness proportional to a slice of the real demo dig
+const S=[['humus',.07],['sand',.15],['loam',.07],['gravel',.12],['clay',.16],['loam',.13],['clay',.17],['natural',.13]];
+const tot=S.reduce((a,s)=>a+s[1],0);
+let y=ground; const bounds=[];
+S.forEach(([k,f],i)=>{const h=(H-ground)*f/tot; bounds.push({k,y0:y,y1:y+h,n:noise1(77+i*13)}); y+=h});
+function edge(b,x){return b.y0+ (b===bounds[0]?0:b.n(x)*7)}
+// fill bands
+bounds.forEach((b,i)=>{const nb=bounds[i+1];g.beginPath();g.moveTo(0,edge(b,0));for(let x=0;x<=W;x+=4)g.lineTo(x,edge(b,x));
+ if(nb){for(let x=W;x>=0;x-=4)g.lineTo(x,edge(nb,x))}else{g.lineTo(W,H);g.lineTo(0,H)} g.closePath();g.fillStyle=SOIL[b.k].b;g.fill();
+ g.save();g.clip();const s=SOIL[b.k];const area=W*(b.y1-b.y0+16);
+ for(let n=0;n<area/9;n++){g.fillStyle=s.d[(r()*s.d.length)|0];g.globalAlpha=.55+r()*.45;const x=r()*W,yy=b.y0-8+r()*(b.y1-b.y0+16),d=.5+r()*1.1;g.fillRect(x,yy,d,d)}
+ g.globalAlpha=1;
+ for(let n=0;n<area/10000*s.peb;n++){const x=r()*W,yy=b.y0+r()*(b.y1-b.y0),R=s.ps[0]+r()*(s.ps[1]-s.ps[0]),m=6+((r()*3)|0);g.beginPath();
+  for(let j=0;j<m;j++){const a=j/m*Math.PI*2,rr=R*(.7+r()*.45);g.lineTo(x+Math.cos(a)*rr,yy+Math.sin(a)*rr*.78)}g.closePath();g.fillStyle=PEB[(r()*4)|0];g.fill();
+  g.fillStyle='rgba(255,255,255,.18)';g.beginPath();g.arc(x-R*.25,yy-R*.25,R*.3,0,7);g.fill()}
+ g.restore();
+ if(i>0){g.beginPath();for(let x=0;x<=W;x+=4)g.lineTo(x,edge(b,x));g.strokeStyle='rgba(21,20,19,.55)';g.lineWidth=1.2;g.stroke()}
+});
+// turf
+g.strokeStyle='#2c2a1d';g.lineWidth=1.3;for(let x=0;x<W;x+=2.2){const h=3+r()*9;g.beginPath();g.moveTo(x,ground+1);g.lineTo(x+(r()-.5)*4,ground-h);g.stroke()}
+// spoil heap: grains piled at the angle of repose (~34°), reversed strata
+const hx=W*.835,hb=ground,hh=H*.165,half=hh/Math.tan(34*Math.PI/180);
+const heapCols=[SOIL.humus.d,SOIL.loam.d,SOIL.clay.d,SOIL.sand.d,SOIL.gravel.d];
+const prof=u=>{const a=Math.abs(u),k=u<0?1.08:1.3;return Math.pow(1-a,k)*(1-.07*Math.exp(-u*u/.012))*(1+.06*Math.exp(-u*u/.012))};
+for(let n=0;n<30000;n++){const u=r()*2-1,v=Math.pow(r(),.9);const top=hb-hh*prof(u)*(1+(r()-.5)*.025);
+ const x=hx+u*half*(u<0?1.08:1), yy=hb-(hb-top)*v; const band=Math.min(4,Math.floor((1-v)*5+(r()-.5)*.8+((u+1)*.6))%5);
+ const cs=heapCols[Math.max(0,band)];g.fillStyle=cs[(r()*cs.length)|0];const d=1+r()*1.6;g.beginPath();g.arc(x,yy,d,0,7);g.fill()}
+// a few grains still in flight from the trench
+for(let n=0;n<26;n++){const t=r();const x=W*.55+t*(hx-W*.55-half*.4),yy=ground-60*Math.sin(t*Math.PI)-hh*.3*t-r()*10;g.fillStyle=SOIL.sand.d[(r()*3)|0];g.fillRect(x,yy,2.2,2.2)}
+// ranging rod
+const rx=Math.round(W*.022),rw=14,ry0=ground-34;
+g.fillStyle='#151413';g.fillRect(rx-2,ry0-2,rw+4,H-ry0+4);
+const seg=Math.round((H-ry0)/9);for(let i=0;i<10;i++){g.fillStyle=i%2?'#f4f2ee':'#d0312d';g.fillRect(rx,ry0+i*seg,rw,seg)}
+// board
+const B=document.getElementById('board'),bw=Math.round(W*.535);
+B.style.left=Math.round(W*.068)+'px';B.style.top=Math.round(H*.12)+'px';B.style.width=bw+'px';B.style.padding='26px 34px 28px';
+// tags on the right, each pinned in a real stratum
+const tags=[[1,'vs','102','SAFE','Codex crash dumps','28.5 GB'],[3,'vs','127','SAFE','half-written git packs','12.0 GB'],[4,'vk','103','KEEP','sessions, last 30 d','3.8 GB'],[6,'vr','101','REVIEW','Codex sessions > 30 d','32.7 GB']];
+const TG=document.getElementById('tags'),col={vs:'#a6d13c',vr:'#f07a1a',vk:'#2f6db5'};
+tags.forEach(([bi,c,n,v,t,gb])=>{const b=bounds[bi];const e=document.createElement('div');e.className='tag';
+ e.innerHTML=`<span class="n">${n}</span><span class="p"><i class="f" style="border-left-color:${col[c]}"></i><b>${v}</b> ${t} <span class="gb">${gb}</span></span>`;
+ TG.appendChild(e);const w=e.offsetWidth;e.style.left=(W-w-30)+'px';e.style.top=Math.round((b.y0+b.y1)/2-15)+'px'});
+// datum line inside the natural layer
+const dn=bounds[bounds.length-1],dy=Math.round(dn.y0+(H-dn.y0)*.55);
+const D=document.getElementById('datum');D.style.left=(rx+rw+6)+'px';D.style.right='0';D.style.top=dy+'px';
+const DL=document.getElementById('dl');DL.style.left=(rx+rw+16)+'px';DL.style.top=(dy-12)+'px';
+document.fonts.ready.then(()=>document.body.dataset.ready=1);
+</script></body></html>
