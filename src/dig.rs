@@ -585,7 +585,7 @@ impl Ctx<'_> {
                 if !old_paths.is_empty() {
                     let it = Item::new("Cline", "cline", format!("{what} older than {age}"), &d, &old).verdict(
                         Verdict::Review,
-                        format!("{} folders Cline keeps per task; old tasks can no longer be restored once removed", old_paths.len()),
+                        format!("{} folder{} Cline keeps per task; those tasks can no longer be reopened once removed", old_paths.len(), plural(old_paths.len())),
                         Action::Remove { paths: old_paths, root: d.clone() },
                     );
                     self.push(it);
@@ -644,11 +644,14 @@ impl Ctx<'_> {
                 }
             }
         }
+        walker.skip.insert(wt.join(".git"));
         let m = walker.measure(wt);
-        let name = match &info.branch {
+        let in_use: Vec<String> = crate::procs::cwds().into_iter().filter(|(_, _, c)| c.starts_with(wt)).map(|(p, n, _)| format!("{n}[{p}]")).collect();
+        let base = wt.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let name = if info.orphaned { format!("former worktree {base}") } else { match &info.branch {
             Some(b) => format!("worktree {b}"),
-            None => format!("worktree {} (detached)", wt.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()),
-        };
+            None => format!("worktree {base} (detached)"),
+        } };
         let fresh = !older_than(m.newest, self.opts.now, HOUR);
         let it = Item::new(harness, "worktree", name, wt, &m);
         let remove = Action::WorktreeRemove {
@@ -659,13 +662,15 @@ impl Ctx<'_> {
         let it = if info.orphaned {
             it.verdict(
                 Verdict::Review,
-                "git no longer knows this worktree (repo moved or pruned); it is a plain copy of files now",
+                "git no longer treats this as a worktree (its repo was moved, pruned, or this is a copy); the files are a plain folder now",
                 Action::Remove { paths: vec![wt.to_path_buf()], root: container.to_path_buf() },
             )
         } else if let Some(e) = &info.error {
             it.verdict(Verdict::Keep, format!("git could not read it: {}", first_line(e)), Action::None)
+        } else if !in_use.is_empty() {
+            it.verdict(Verdict::Keep, format!("in use right now: {} has its working folder here", in_use.join(", ")), Action::None)
         } else if info.dirty > 0 {
-            it.verdict(Verdict::Keep, format!("{} uncommitted change{}: real work, not touched", info.dirty, plural(info.dirty)), Action::None)
+            it.verdict(Verdict::Keep, format!("{} uncommitted change{}: real work", info.dirty, plural(info.dirty)), Action::None)
         } else if info.unique > 0 {
             it.verdict(
                 Verdict::Review,
@@ -678,12 +683,15 @@ impl Ctx<'_> {
                 remove,
             )
         } else if fresh {
-            it.verdict(Verdict::Review, format!("clean and merged, but touched {} ago: an agent may still be in it", units::age(units::age_secs(m.newest.unwrap_or(self.opts.now), self.opts.now))), remove)
+            let a = units::age(units::age_secs(m.newest.unwrap_or(self.opts.now), self.opts.now));
+            let when = if a == "just now" { a } else { format!("{a} ago") };
+            it.verdict(Verdict::Review, format!("clean and merged, but a file changed {when}: an agent may still be working in it"), remove)
         } else {
             it.verdict(Verdict::Safe, "clean, and every commit is also on another branch or remote", remove)
         };
         let idx = self.push(it);
         if let Some(r) = &info.main_repo {
+            let r = &std::fs::canonicalize(r).unwrap_or_else(|_| r.clone());
             if !self.repos.contains(r) {
                 self.repos.push(r.clone());
             }
@@ -852,7 +860,13 @@ pub fn dig(env: &Env, opts: &Opts) -> Report {
     cx.opencode();
     cx.gemini();
     cx.cline();
-    let mut repos = find_repos(&opts.roots, opts.repo_depth);
+    let mut repos: Vec<PathBuf> = vec![];
+    for r in find_repos(&opts.roots, opts.repo_depth) {
+        let r = std::fs::canonicalize(&r).unwrap_or(r);
+        if !repos.contains(&r) {
+            repos.push(r);
+        }
+    }
     for r in cx.repos.clone() {
         if !repos.contains(&r) {
             repos.push(r);

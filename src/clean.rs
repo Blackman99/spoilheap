@@ -106,7 +106,7 @@ pub fn run(env: &Env, rep: &Report, ch: &Choice, st: &Style) -> i32 {
     for it in &chosen {
         let tag = format!("[{}]", it.id);
         if it.verdict == Verdict::Keep {
-            println!("  {} {} {} {}", st.dim(&tag), st.verdict(it.verdict), it.label, st.dim(&format!("— not touched: {}", it.reason)));
+            println!("  {} {} {} {}", st.dim(&tag), st.verdict(it.verdict), it.label, st.dim(&format!("— KEEP is never touched ({})", it.reason)));
             continue;
         }
         if let Action::Manual(c) = &it.action {
@@ -115,7 +115,7 @@ pub fn run(env: &Env, rep: &Report, ch: &Choice, st: &Style) -> i32 {
             continue;
         }
         let what = describe(env, it);
-        println!("  {} {} {:<44} {:>9}  {}", st.dim(&tag), st.verdict(it.verdict), crate::render::clip(&it.label, 44), units::bytes(it.reclaim), st.dim(&what));
+        println!("  {} {} {:<44} {:>9}  {}", st.dim(&tag), st.verdict(it.verdict), crate::render::clip(&it.label, 44), if it.reclaim == 0 { "—".to_string() } else { units::bytes(it.reclaim) }, st.dim(&what));
         planned += it.reclaim;
         if !ch.yes {
             continue;

@@ -189,7 +189,7 @@ pub fn report(env: &Env, rep: &Report, disks: &[DiskLine], st: &Style, shown_min
         units::bytes(keep),
     ));
     let size_w = 9;
-    let id_w = 6;
+    let meta_w = 22;
     for h in crate::dig::HARNESSES {
         let group: Vec<&&Item> = items.iter().filter(|i| i.harness == *h && (i.bytes >= shown_min || i.kind == "worktree-registration" || i.kind == "worktree")).collect();
         if group.is_empty() {
@@ -200,23 +200,23 @@ pub fn report(env: &Env, rep: &Report, disks: &[DiskLine], st: &Style, shown_min
         o.push_str(&format!("{}  {}\n", st.bold(&h.to_uppercase()), st.dim(&units::bytes(gsum))));
         for it in group {
             let child = it.parent.is_some();
-            let lead = if child { "  ↳ " } else { "" };
-            let meta = meta(it);
-            let fixed = 2 + id_w + 1 + 7 + vis(lead) + 1 + size_w + 2 + meta.chars().count();
-            let label_w = w.saturating_sub(fixed).max(16);
-            let label = clip(&it.label, label_w);
+            let lead = if child { "↳ " } else { "" };
+            let meta = clip(&meta(it), meta_w);
+            // "  [101] REVIEW " = 15 columns
+            let label_w = w.saturating_sub(15 + 2 + size_w + 2 + meta_w).max(16);
+            let label = clip(&format!("{lead}{}", it.label), label_w);
             let pad = label_w.saturating_sub(label.chars().count());
+            let size = if it.bytes == 0 { "—".to_string() } else { units::bytes(it.bytes) };
             o.push_str(&format!(
-                "  {} {} {}{}{} {:>size_w$}  {}\n",
+                "  {} {} {}{}  {:>size_w$}  {}\n",
                 st.dim(&format!("[{}]", it.id)),
                 st.verdict(it.verdict),
-                lead,
                 label,
                 " ".repeat(pad),
-                units::bytes(it.bytes),
+                size,
                 st.dim(&meta),
             ));
-            let ind = 2 + id_w + 1 + 7;
+            let ind = 15;
             let path = env.tilde(&it.path);
             let text = format!("{} — {}", clip(&path, (w.saturating_sub(ind)).max(20) * 2 / 3), it.reason);
             for l in wrap(&text, w.saturating_sub(ind).max(30), ind) {
@@ -236,18 +236,19 @@ pub fn report(env: &Env, rep: &Report, disks: &[DiskLine], st: &Style, shown_min
     o.push_str(&format!("\n{}\n", st.bold("next")));
     let n_safe = rep.items.iter().filter(|i| i.verdict == Verdict::Safe).count();
     if n_safe > 0 {
-        o.push_str(&format!("  {}   frees {} from {} SAFE item{} (prints the plan; add --yes to do it)\n", st.green("spoilheap clean --safe"), units::bytes(safe), n_safe, if n_safe == 1 { "" } else { "s" }));
+        o.push_str(&format!("  {}  frees {} from {} SAFE item{} (prints the plan; add --yes to do it)\n", st.green(&format!("{:<26}", "spoilheap clean --safe")), units::bytes(safe), n_safe, if n_safe == 1 { "" } else { "s" }));
     }
     let reviews: Vec<String> = rep.items.iter().filter(|i| i.verdict == Verdict::Review).take(2).map(|i| i.id.to_string()).collect();
     if !reviews.is_empty() {
         let cmd = format!("spoilheap clean {}", reviews.join(" "));
-        o.push_str(&format!("  {}{}also clears REVIEW items you have looked at\n", st.yellow(&cmd), " ".repeat(25usize.saturating_sub(cmd.len()))));
+        o.push_str(&format!("  {}  also clears REVIEW items once you have looked at them\n", st.yellow(&format!("{cmd:<26}"))));
     }
     let manual: Vec<&Item> = rep.items.iter().filter(|i| matches!(i.action, Action::Manual(_))).collect();
     if !manual.is_empty() {
-        o.push_str(&format!("  {}  databases: spoilheap prints the VACUUM command, never runs it\n", "spoilheap clean <id>   "));
+        let ids: Vec<String> = manual.iter().take(1).map(|i| i.id.to_string()).collect();
+        o.push_str(&format!("  {}  databases: prints the VACUUM command, never runs it\n", format!("{:<26}", format!("spoilheap clean {}", ids.join(" ")))));
     }
-    o.push_str(&format!("  {}   stop the agent before the disk is full (also: hook codex)\n", "spoilheap hook claude  "));
+    o.push_str(&format!("  {}  stop the agent before the disk is full (also: hook codex)\n", format!("{:<26}", "spoilheap hook claude")));
     if rep.repos == 0 && rep.roots.is_empty() {
         o.push_str(&st.dim("  no repositories scanned: pass --root ~/code to check tmp_pack garbage and .claude/worktrees\n"));
     }
@@ -261,7 +262,8 @@ pub fn meta(it: &Item) -> String {
         parts.push(format!("{} files", units::thousands(it.files)));
     }
     if let Some(t) = it.newest {
-        parts.push(format!("newest {}", units::age(units::age_secs(t, now))));
+        let a = units::age(units::age_secs(t, now));
+        parts.push(if a == "just now" { a } else { format!("{a} ago") });
     }
     parts.join(" · ")
 }

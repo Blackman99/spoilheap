@@ -60,6 +60,17 @@ pub fn analyze(wt: &Path) -> Worktree {
         w.orphaned = true;
         return w;
     }
+    // The repo's record must point back at this folder; a copied or moved worktree
+    // still has a .git link, but git no longer treats it as a working tree.
+    if let Ok(back) = std::fs::read_to_string(gd.join("gitdir")) {
+        let back = PathBuf::from(back.trim());
+        let here = std::fs::canonicalize(wt.join(".git")).unwrap_or_else(|_| wt.join(".git"));
+        let there = std::fs::canonicalize(&back).unwrap_or(back);
+        if here != there {
+            w.orphaned = true;
+            return w;
+        }
+    }
     // <common>/worktrees/<name>/commondir → "../.." ; main repo = parent of <common> when it is ".git"
     if let Ok(cd) = std::fs::read_to_string(gd.join("commondir")) {
         let common = gd.join(cd.trim());
@@ -80,7 +91,7 @@ pub fn analyze(wt: &Path) -> Worktree {
     w.branch = git(wt, &["symbolic-ref", "-q", "--short", "HEAD"]).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     let mut args: Vec<String> = vec!["rev-list".into(), "--count".into(), "HEAD".into(), "--not".into()];
     if let Some(b) = &w.branch {
-        args.push(format!("--exclude=refs/heads/{b}"));
+        args.push(format!("--exclude={b}")); // --branches patterns are relative to refs/heads
     }
     args.extend(["--branches".into(), "--tags".into(), "--remotes".into()]);
     let a: Vec<&str> = args.iter().map(String::as_str).collect();

@@ -99,7 +99,7 @@ impl Walker {
     fn visit(&mut self, p: &Path, dev: Option<u64>, m: &mut Measure, f: &mut dyn FnMut(&Path, &fs::Metadata)) {
         let Ok(md) = fs::symlink_metadata(p) else { return };
         let ft = md.file_type();
-        if ft.is_symlink() {
+        if ft.is_symlink() || self.skip.contains(p) {
             return;
         }
         #[cfg(unix)]
@@ -115,9 +115,6 @@ impl Walker {
             }
         }
         if ft.is_dir() {
-            if self.skip.contains(p) {
-                return;
-            }
             m.bytes += allocated(&md);
             let Ok(rd) = fs::read_dir(p) else { return };
             for e in rd.flatten() {

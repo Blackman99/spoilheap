@@ -119,3 +119,36 @@ pub fn writers(dir: &Path, newest_files: &[std::path::PathBuf]) -> Vec<u32> {
     pids.dedup();
     pids
 }
+
+/// (pid, name, current working folder) of every process we can see.
+pub fn cwds() -> Vec<(u32, String, std::path::PathBuf)> {
+    let mut out = vec![];
+    #[cfg(target_os = "linux")]
+    {
+        let Ok(rd) = std::fs::read_dir("/proc") else { return out };
+        for e in rd.flatten() {
+            let Ok(pid) = e.file_name().to_string_lossy().parse::<u32>() else { continue };
+            if pid == std::process::id() {
+                continue;
+            }
+            let Ok(cwd) = std::fs::read_link(e.path().join("cwd")) else { continue };
+            let name = std::fs::read_to_string(e.path().join("comm")).map(|s| s.trim().to_string()).unwrap_or_default();
+            out.push((pid, name, cwd));
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(o) = Command::new("lsof").args(["-a", "-d", "cwd", "-Fpcn"]).stdin(Stdio::null()).stderr(Stdio::null()).output() {
+            let (mut pid, mut name) = (0u32, String::new());
+            for l in String::from_utf8_lossy(&o.stdout).lines() {
+                match l.split_at(1) {
+                    ("p", v) => pid = v.parse().unwrap_or(0),
+                    ("c", v) => name = v.to_string(),
+                    ("n", v) if pid != std::process::id() => out.push((pid, name.clone(), std::path::PathBuf::from(v))),
+                    _ => {}
+                }
+            }
+        }
+    }
+    out
+}
