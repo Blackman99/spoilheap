@@ -1,0 +1,29 @@
+[package]
+name = "spoilheap"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Find the gigabytes your coding agents left on disk, say per item what is safe to delete, clear only that, and stop the agent before the disk is full."
+license = "MIT"
+repository = "https://github.com/Blackman99/spoilheap"
+homepage = "https://blackman99.github.io/spoilheap/"
+readme = "README.md"
+keywords = ["disk", "codex", "claude-code", "opencode", "cleanup"]
+categories = ["command-line-utilities", "filesystem", "development-tools"]
+exclude = ["site/", "assets/", "scripts/", ".github/"]
+
+[dependencies]
+serde_json = "1"
+
+[target."cfg(unix)".dependencies]
+libc = "0.2"
+
+[target."cfg(windows)".dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem", "Win32_Foundation"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
