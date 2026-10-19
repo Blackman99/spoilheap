@@ -27,11 +27,20 @@ impl Verdict {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
     /// Delete these files/folders, then remove folders left empty under `root`.
-    Remove { paths: Vec<PathBuf>, root: PathBuf },
+    Remove {
+        paths: Vec<PathBuf>,
+        root: PathBuf,
+    },
     /// `git -C <repo> worktree remove <worktree>` (never --force).
-    WorktreeRemove { repo: PathBuf, worktree: PathBuf, container: Option<PathBuf> },
+    WorktreeRemove {
+        repo: PathBuf,
+        worktree: PathBuf,
+        container: Option<PathBuf>,
+    },
     /// `git -C <repo> worktree prune`
-    WorktreePrune { repo: PathBuf },
+    WorktreePrune {
+        repo: PathBuf,
+    },
     /// spoilheap will not do this itself; it prints the command.
     Manual(String),
     None,
@@ -57,7 +66,13 @@ pub struct Item {
 }
 
 impl Item {
-    fn new(harness: &'static str, kind: &'static str, label: impl Into<String>, path: &Path, m: &Measure) -> Item {
+    fn new(
+        harness: &'static str,
+        kind: &'static str,
+        label: impl Into<String>,
+        path: &Path,
+        m: &Measure,
+    ) -> Item {
         Item {
             id: 0,
             harness,
@@ -78,7 +93,11 @@ impl Item {
     fn verdict(mut self, v: Verdict, reason: impl Into<String>, action: Action) -> Item {
         self.verdict = v;
         self.reason = reason.into();
-        self.reclaim = if v == Verdict::Keep || matches!(action, Action::None) { 0 } else { self.bytes };
+        self.reclaim = if v == Verdict::Keep || matches!(action, Action::None) {
+            0
+        } else {
+            self.bytes
+        };
         self.action = action;
         self
     }
@@ -97,10 +116,22 @@ pub struct Env {
 impl Env {
     pub fn from_process(home_override: Option<PathBuf>) -> Env {
         let vars: Vec<(String, String)> = std::env::vars().collect();
-        let get = |k: &str| vars.iter().find(|(a, _)| a == k).map(|(_, b)| b.clone()).filter(|s| !s.is_empty());
+        let get = |k: &str| {
+            vars.iter()
+                .find(|(a, _)| a == k)
+                .map(|(_, b)| b.clone())
+                .filter(|s| !s.is_empty())
+        };
         let home = home_override
             .or_else(|| get("SPOILHEAP_HOME").map(PathBuf::from))
-            .or_else(|| if cfg!(windows) { get("USERPROFILE") } else { get("HOME") }.map(PathBuf::from))
+            .or_else(|| {
+                if cfg!(windows) {
+                    get("USERPROFILE")
+                } else {
+                    get("HOME")
+                }
+                .map(PathBuf::from)
+            })
             .unwrap_or_else(|| PathBuf::from("."));
         let os = if cfg!(target_os = "macos") {
             "macos"
@@ -109,15 +140,21 @@ impl Env {
         } else {
             "linux"
         };
-        let os = get("SPOILHEAP_OS").map(|s| match s.as_str() {
-            "macos" => "macos",
-            "windows" => "windows",
-            _ => "linux",
-        }).unwrap_or(os);
+        let os = get("SPOILHEAP_OS")
+            .map(|s| match s.as_str() {
+                "macos" => "macos",
+                "windows" => "windows",
+                _ => "linux",
+            })
+            .unwrap_or(os);
         Env { home, os, vars }
     }
     pub fn var(&self, k: &str) -> Option<String> {
-        self.vars.iter().find(|(a, _)| a == k).map(|(_, b)| b.clone()).filter(|s| !s.is_empty())
+        self.vars
+            .iter()
+            .find(|(a, _)| a == k)
+            .map(|(_, b)| b.clone())
+            .filter(|s| !s.is_empty())
     }
     pub fn h(&self, rel: &str) -> PathBuf {
         let mut p = self.home.clone();
@@ -127,30 +164,49 @@ impl Env {
         p
     }
     pub fn codex(&self) -> PathBuf {
-        self.var("CODEX_HOME").map(PathBuf::from).unwrap_or_else(|| self.h(".codex"))
+        self.var("CODEX_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.h(".codex"))
     }
     pub fn claude(&self) -> PathBuf {
-        self.var("CLAUDE_CONFIG_DIR").map(PathBuf::from).unwrap_or_else(|| self.h(".claude"))
+        self.var("CLAUDE_CONFIG_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.h(".claude"))
     }
     pub fn xdg_data(&self) -> PathBuf {
-        self.var("XDG_DATA_HOME").map(PathBuf::from).unwrap_or_else(|| self.h(".local/share"))
+        self.var("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.h(".local/share"))
     }
     pub fn xdg_config(&self) -> PathBuf {
-        self.var("XDG_CONFIG_HOME").map(PathBuf::from).unwrap_or_else(|| self.h(".config"))
+        self.var("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.h(".config"))
     }
     /// Where Electron apps keep per-user data.
     pub fn app_support(&self) -> PathBuf {
         match self.os {
             "macos" => self.h("Library/Application Support"),
-            "windows" => self.var("APPDATA").map(PathBuf::from).unwrap_or_else(|| self.h("AppData/Roaming")),
+            "windows" => self
+                .var("APPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| self.h("AppData/Roaming")),
             _ => self.xdg_config(),
         }
     }
     pub fn cache_dir(&self) -> PathBuf {
         match self.os {
             "macos" => self.h("Library/Caches/spoilheap"),
-            "windows" => self.var("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(|| self.h("AppData/Local")).join("spoilheap"),
-            _ => self.var("XDG_CACHE_HOME").map(PathBuf::from).unwrap_or_else(|| self.h(".cache")).join("spoilheap"),
+            "windows" => self
+                .var("LOCALAPPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| self.h("AppData/Local"))
+                .join("spoilheap"),
+            _ => self
+                .var("XDG_CACHE_HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| self.h(".cache"))
+                .join("spoilheap"),
         }
     }
     /// "~/.codex/sessions" for display.
@@ -168,7 +224,6 @@ pub struct Opts {
     /// History older than this is REVIEW; newer is KEEP.
     pub older: Duration,
     pub roots: Vec<PathBuf>,
-    pub roots_given: bool,
     pub now: SystemTime,
     pub repo_depth: usize,
 }
@@ -200,12 +255,19 @@ const DAY: Duration = Duration::from_secs(86400);
 const HOUR: Duration = Duration::from_secs(3600);
 
 fn is_dir(p: &Path) -> bool {
-    std::fs::symlink_metadata(p).map(|m| m.is_dir()).unwrap_or(false)
+    std::fs::symlink_metadata(p)
+        .map(|m| m.is_dir())
+        .unwrap_or(false)
 }
 
 fn subdirs(p: &Path) -> Vec<PathBuf> {
     let mut v: Vec<PathBuf> = std::fs::read_dir(p)
-        .map(|rd| rd.flatten().map(|e| e.path()).filter(|p| is_dir(p)).collect())
+        .map(|rd| {
+            rd.flatten()
+                .map(|e| e.path())
+                .filter(|p| is_dir(p))
+                .collect()
+        })
         .unwrap_or_default();
     v.sort();
     v
@@ -229,7 +291,15 @@ impl Ctx<'_> {
     }
 
     /// Split a history folder into files older than `older` (REVIEW) and newer (KEEP).
-    fn split_by_age(&mut self, harness: &'static str, kind: &'static str, dir: &Path, what: &str, why_old: &str, why_new: &str) {
+    fn split_by_age(
+        &mut self,
+        harness: &'static str,
+        kind: &'static str,
+        dir: &Path,
+        what: &str,
+        why_old: &str,
+        why_new: &str,
+    ) {
         if !is_dir(dir) {
             return;
         }
@@ -249,21 +319,34 @@ impl Ctx<'_> {
         });
         let age = units::duration_label(cutoff);
         if old.files > 0 {
-            let it = Item::new(harness, kind, format!("{what} older than {age}"), dir, &old).verdict(
-                Verdict::Review,
-                why_old.to_string(),
-                Action::Remove { paths: old_files, root: dir.to_path_buf() },
-            );
+            let it = Item::new(harness, kind, format!("{what} older than {age}"), dir, &old)
+                .verdict(
+                    Verdict::Review,
+                    why_old.to_string(),
+                    Action::Remove {
+                        paths: old_files,
+                        root: dir.to_path_buf(),
+                    },
+                );
             self.push(it);
         }
         if new.files > 0 {
-            let it = Item::new(harness, "recent", format!("{what}, last {age}"), dir, &new).verdict(Verdict::Keep, why_new.to_string(), Action::None);
+            let it = Item::new(harness, "recent", format!("{what}, last {age}"), dir, &new)
+                .verdict(Verdict::Keep, why_new.to_string(), Action::None);
             self.push(it);
         }
     }
 
     /// Files older than `min_age` are SAFE to delete; newer ones are left alone.
-    fn safe_files(&mut self, harness: &'static str, kind: &'static str, dir: &Path, label: &str, reason: &str, min_age: Duration) {
+    fn safe_files(
+        &mut self,
+        harness: &'static str,
+        kind: &'static str,
+        dir: &Path,
+        label: &str,
+        reason: &str,
+        min_age: Duration,
+    ) {
         if !is_dir(dir) {
             return;
         }
@@ -278,7 +361,14 @@ impl Ctx<'_> {
             }
         });
         if m.files > 0 {
-            let it = Item::new(harness, kind, label, dir, &m).verdict(Verdict::Safe, reason, Action::Remove { paths: files, root: dir.to_path_buf() });
+            let it = Item::new(harness, kind, label, dir, &m).verdict(
+                Verdict::Safe,
+                reason,
+                Action::Remove {
+                    paths: files,
+                    root: dir.to_path_buf(),
+                },
+            );
             self.push(it);
         }
     }
@@ -300,20 +390,39 @@ impl Ctx<'_> {
         if is_dir(&arch) {
             let m = walk::measure(&arch);
             if m.files > 0 {
-                let it = Item::new("Codex", "archived-sessions", "archived sessions", &arch, &m).verdict(
-                    Verdict::Review,
-                    "threads you archived in Codex; they stay on disk until deleted",
-                    Action::Remove { paths: vec![arch.clone()], root: c.clone() },
-                );
+                let it = Item::new("Codex", "archived-sessions", "archived sessions", &arch, &m)
+                    .verdict(
+                        Verdict::Review,
+                        "threads you archived in Codex; they stay on disk until deleted",
+                        Action::Remove {
+                            paths: vec![arch.clone()],
+                            root: c.clone(),
+                        },
+                    );
                 self.push(it);
             }
         }
         let wts = c.join("worktrees");
         self.worktree_container("Codex", &wts);
-        self.safe_files("Codex", "logs", &c.join("log"), "logs older than 1 d", "log files; Codex writes new ones as it goes", DAY);
-        for e in std::fs::read_dir(&c).map(|r| r.flatten().map(|e| e.path()).collect::<Vec<_>>()).unwrap_or_default() {
-            let n = e.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            if n.starts_with("logs_") && n.ends_with(".sqlite") || n.starts_with("state_") && n.ends_with(".sqlite") {
+        self.safe_files(
+            "Codex",
+            "logs",
+            &c.join("log"),
+            "logs older than 1 d",
+            "log files; Codex writes new ones as it goes",
+            DAY,
+        );
+        for e in std::fs::read_dir(&c)
+            .map(|r| r.flatten().map(|e| e.path()).collect::<Vec<_>>())
+            .unwrap_or_default()
+        {
+            let n = e
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            if n.starts_with("logs_") && n.ends_with(".sqlite")
+                || n.starts_with("state_") && n.ends_with(".sqlite")
+            {
                 self.sqlite_db("Codex", &e, "quit Codex");
             }
         }
@@ -324,9 +433,23 @@ impl Ctx<'_> {
                 let fresh = !older_than(m.newest, self.opts.now, DAY);
                 let it = Item::new("Codex", "tmp", "plugin temp clones (.tmp)", &tmp, &m);
                 let it = if fresh {
-                    it.verdict(Verdict::Review, "written in the last day: a plugin refresh may be running", Action::Remove { paths: subdirs(&tmp), root: tmp.clone() })
+                    it.verdict(
+                        Verdict::Review,
+                        "written in the last day: a plugin refresh may be running",
+                        Action::Remove {
+                            paths: subdirs(&tmp),
+                            root: tmp.clone(),
+                        },
+                    )
                 } else {
-                    it.verdict(Verdict::Safe, "leftover plugin/marketplace clones (openai/codex#55068)", Action::Remove { paths: subdirs(&tmp), root: tmp.clone() })
+                    it.verdict(
+                        Verdict::Safe,
+                        "leftover plugin/marketplace clones (openai/codex#55068)",
+                        Action::Remove {
+                            paths: subdirs(&tmp),
+                            root: tmp.clone(),
+                        },
+                    )
                 };
                 self.push(it);
             }
@@ -336,7 +459,10 @@ impl Ctx<'_> {
         if is_dir(&bun) {
             let mut builds: Vec<(PathBuf, Measure)> = subdirs(&bun)
                 .into_iter()
-                .filter(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("codex")))
+                .filter(|p| {
+                    p.file_name()
+                        .is_some_and(|n| n.to_string_lossy().starts_with("codex"))
+                })
                 .map(|p| {
                     let m = walk::measure(&p);
                     (p, m)
@@ -350,10 +476,20 @@ impl Ctx<'_> {
                     m.merge(mm);
                     paths.push(p.clone());
                 }
-                let it = Item::new("Codex", "bun-cache", format!("{} old Codex builds in bun's cache", paths.len()), &bun, &m).verdict(
+                let it = Item::new(
+                    "Codex",
+                    "bun-cache",
+                    format!("{} old Codex builds in bun's cache", paths.len()),
+                    &bun,
+                    &m,
+                )
+                .verdict(
                     Verdict::Safe,
                     "the newest build is kept; bun downloads again if one is needed",
-                    Action::Remove { paths, root: bun.clone() },
+                    Action::Remove {
+                        paths,
+                        root: bun.clone(),
+                    },
                 );
                 self.push(it);
             }
@@ -361,7 +497,12 @@ impl Ctx<'_> {
     }
 
     fn crash_dumps(&mut self) {
-        let apps = [("Codex", "Codex"), ("ChatGPT", "Codex"), ("Claude", "Claude Code"), ("Cursor", "Cursor")];
+        let apps = [
+            ("Codex", "Codex"),
+            ("ChatGPT", "Codex"),
+            ("Claude", "Claude Code"),
+            ("Cursor", "Cursor"),
+        ];
         for (app, harness) in apps {
             let base = self.env.app_support().join(app);
             for sub in ["Crashpad", "Crashpad/pending", "Crash Reports"] {
@@ -373,7 +514,10 @@ impl Ctx<'_> {
                 let mut recent = 0u64;
                 let mut files = vec![];
                 let m = Walker::new().each_file(&d, &mut |p, md| {
-                    let n = p.file_name().map(|n| n.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+                    let n = p
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_ascii_lowercase())
+                        .unwrap_or_default();
                     if n == "settings.dat" || n == "metadata" {
                         return; // Crashpad's own state, not a dump
                     }
@@ -385,7 +529,8 @@ impl Ctx<'_> {
                 if files.is_empty() {
                     continue;
                 }
-                let mut reason = "crash reports; nothing reads them after they are written".to_string();
+                let mut reason =
+                    "crash reports; nothing reads them after they are written".to_string();
                 if recent >= 30 {
                     reason = format!(
                         "crash loop: {} dumps in the last hour (openai/codex#25921). Quit {app} first or the pile grows straight back",
@@ -393,7 +538,14 @@ impl Ctx<'_> {
                     );
                 }
                 let label = format!("{app} crash dumps");
-                let it = Item::new(harness, "crash-dumps", label, &d, &m).verdict(Verdict::Safe, reason, Action::Remove { paths: files, root: d.clone() });
+                let it = Item::new(harness, "crash-dumps", label, &d, &m).verdict(
+                    Verdict::Safe,
+                    reason,
+                    Action::Remove {
+                        paths: files,
+                        root: d.clone(),
+                    },
+                );
                 self.push(it);
             }
         }
@@ -428,7 +580,14 @@ impl Ctx<'_> {
             "captured shell environments; each new session writes a fresh one",
             DAY,
         );
-        self.safe_files("Claude Code", "logs", &c.join("debug"), "debug logs older than 1 d", "debug logs", DAY);
+        self.safe_files(
+            "Claude Code",
+            "logs",
+            &c.join("debug"),
+            "debug logs older than 1 d",
+            "debug logs",
+            DAY,
+        );
     }
 
     fn opencode(&mut self) {
@@ -439,10 +598,12 @@ impl Ctx<'_> {
         let mut dbs: Vec<PathBuf> = std::fs::read_dir(&d)
             .map(|r| r.flatten().map(|e| e.path()).collect())
             .unwrap_or_default();
-        dbs.retain(|p| p.file_name().is_some_and(|n| {
-            let n = n.to_string_lossy();
-            n.starts_with("opencode") && n.ends_with(".db")
-        }));
+        dbs.retain(|p| {
+            p.file_name().is_some_and(|n| {
+                let n = n.to_string_lossy();
+                n.starts_with("opencode") && n.ends_with(".db")
+            })
+        });
         if let Some(v) = self.env.var("OPENCODE_DB") {
             let p = PathBuf::from(v);
             if p.exists() && !dbs.contains(&p) {
@@ -459,18 +620,31 @@ impl Ctx<'_> {
             if m.bytes == 0 {
                 continue;
             }
-            let id = proj.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let id = proj
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
             let short: String = id.chars().take(10).collect();
             let label = format!("undo snapshots · project {short}");
             let it = Item::new("OpenCode", "snapshots", label, &proj, &m);
             let it = if older_than(m.newest, self.opts.now, self.opts.older) {
                 it.verdict(
                     Verdict::Review,
-                    format!("git snapshots behind /undo; untouched for {}+ (anomalyco/opencode#55010)", units::duration_label(self.opts.older)),
-                    Action::Remove { paths: vec![proj.clone()], root: snap.clone() },
+                    format!(
+                        "git snapshots behind /undo; untouched for {}+ (anomalyco/opencode#55010)",
+                        units::duration_label(self.opts.older)
+                    ),
+                    Action::Remove {
+                        paths: vec![proj.clone()],
+                        root: snap.clone(),
+                    },
                 )
             } else {
-                it.verdict(Verdict::Keep, "git snapshots behind /undo for a project you used recently", Action::None)
+                it.verdict(
+                    Verdict::Keep,
+                    "git snapshots behind /undo for a project you used recently",
+                    Action::None,
+                )
             };
             self.push(it);
         }
@@ -482,21 +656,39 @@ impl Ctx<'_> {
             "per-session JSON files from before the SQLite store",
             "per-session JSON files",
         );
-        self.safe_files("OpenCode", "logs", &d.join("log"), "logs older than 1 d", "log files", DAY);
+        self.safe_files(
+            "OpenCode",
+            "logs",
+            &d.join("log"),
+            "logs older than 1 d",
+            "log files",
+            DAY,
+        );
     }
 
     fn sqlite_db(&mut self, harness: &'static str, db: &Path, quit: &str) {
-        let Ok(md) = std::fs::metadata(db) else { return };
+        let Ok(md) = std::fs::metadata(db) else {
+            return;
+        };
         let mut m = Measure::default();
         m.add_file(walk::allocated(&md), md.modified().ok());
         let wal = PathBuf::from(format!("{}-wal", db.display()));
-        let wal_bytes = std::fs::metadata(&wal).map(|m| walk::allocated(&m)).unwrap_or(0);
+        let wal_bytes = std::fs::metadata(&wal)
+            .map(|m| walk::allocated(&m))
+            .unwrap_or(0);
         if wal_bytes > 0 {
             m.add_file(wal_bytes, None);
         }
-        let name = db.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let name = db
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
         let Some(h) = sqlite::header(db) else {
-            let it = Item::new(harness, "database", name, db, &m).verdict(Verdict::Keep, "database (header unreadable)", Action::None);
+            let it = Item::new(harness, "database", name, db, &m).verdict(
+                Verdict::Keep,
+                "database (header unreadable)",
+                Action::None,
+            );
             self.push(it);
             return;
         };
@@ -504,19 +696,34 @@ impl Ctx<'_> {
         let size = md.len();
         let mut detail = String::new();
         if let Some(t) = sqlite::top_tables(db) {
-            let parts: Vec<String> = t.iter().take(2).map(|(n, b)| format!("{n} {}", units::bytes(*b))).collect();
+            let parts: Vec<String> = t
+                .iter()
+                .take(2)
+                .map(|(n, b)| format!("{n} {}", units::bytes(*b)))
+                .collect();
             detail = format!("; biggest: {}", parts.join(", "));
         }
         let wal_note = if wal_bytes > 1_000_000_000 {
-            format!("; its WAL is {} (a long reader is starving checkpoints, anomalyco/opencode#56827)", units::bytes(wal_bytes))
+            format!(
+                "; its WAL is {} (a long reader is starving checkpoints, anomalyco/opencode#56827)",
+                units::bytes(wal_bytes)
+            )
         } else {
             String::new()
         };
         // SPOILHEAP_VACUUM_MIN lowers the "worth a VACUUM" bar (default 50 MB and 20%, or 500 MB)
-        let min = std::env::var("SPOILHEAP_VACUUM_MIN").ok().and_then(|v| units::parse_amount(&v).ok()).map(|a| a.resolve(size)).unwrap_or(50_000_000);
+        let min = std::env::var("SPOILHEAP_VACUUM_MIN")
+            .ok()
+            .and_then(|v| units::parse_amount(&v).ok())
+            .map(|a| a.resolve(size))
+            .unwrap_or(50_000_000);
         let worth = free >= 500_000_000 || (size > 0 && free * 5 >= size && free >= min);
         if worth {
-            let label = format!("{name}: {} of {} is free pages", units::bytes(free), units::bytes(size));
+            let label = format!(
+                "{name}: {} of {} is free pages",
+                units::bytes(free),
+                units::bytes(size)
+            );
             let mut it = Item::new(harness, "database", label, db, &m).verdict(
                 Verdict::Review,
                 format!(
@@ -530,7 +737,10 @@ impl Ctx<'_> {
         } else {
             let it = Item::new(harness, "database", name, db, &m).verdict(
                 Verdict::Keep,
-                format!("live database, {} free pages{detail}{wal_note}", units::bytes(free)),
+                format!(
+                    "live database, {} free pages{detail}{wal_note}",
+                    units::bytes(free)
+                ),
                 Action::None,
             );
             self.push(it);
@@ -544,16 +754,35 @@ impl Ctx<'_> {
                 if m.bytes == 0 {
                     continue;
                 }
-                let id: String = proj.file_name().map(|n| n.to_string_lossy().chars().take(10).collect()).unwrap_or_default();
-                let it = Item::new("Gemini CLI", "gemini-tmp", format!("chats & checkpoints · project {id}"), &proj, &m);
+                let id: String = proj
+                    .file_name()
+                    .map(|n| n.to_string_lossy().chars().take(10).collect())
+                    .unwrap_or_default();
+                let it = Item::new(
+                    "Gemini CLI",
+                    "gemini-tmp",
+                    format!("chats & checkpoints · project {id}"),
+                    &proj,
+                    &m,
+                );
                 let it = if older_than(m.newest, self.opts.now, self.opts.older) {
                     it.verdict(
                         Verdict::Review,
-                        format!("saved chats, checkpoints and logs; untouched for {}+", units::duration_label(self.opts.older)),
-                        Action::Remove { paths: vec![proj.clone()], root: base.clone() },
+                        format!(
+                            "saved chats, checkpoints and logs; untouched for {}+",
+                            units::duration_label(self.opts.older)
+                        ),
+                        Action::Remove {
+                            paths: vec![proj.clone()],
+                            root: base.clone(),
+                        },
                     )
                 } else {
-                    it.verdict(Verdict::Keep, "chats and checkpoints of a project you used recently", Action::None)
+                    it.verdict(
+                        Verdict::Keep,
+                        "chats and checkpoints of a project you used recently",
+                        Action::None,
+                    )
                 };
                 self.push(it);
             }
@@ -563,10 +792,18 @@ impl Ctx<'_> {
     fn cline(&mut self) {
         let mut bases = vec![self.env.h(".cline/data")];
         for ed in ["Code", "Cursor", "Windsurf", "VSCodium"] {
-            bases.push(self.env.app_support().join(ed).join("User/globalStorage/saoudrizwan.claude-dev"));
+            bases.push(
+                self.env
+                    .app_support()
+                    .join(ed)
+                    .join("User/globalStorage/saoudrizwan.claude-dev"),
+            );
         }
         for b in bases {
-            for (sub, what) in [("tasks", "task histories"), ("checkpoints", "checkpoint repos")] {
+            for (sub, what) in [
+                ("tasks", "task histories"),
+                ("checkpoints", "checkpoint repos"),
+            ] {
                 let d = b.join(sub);
                 if !is_dir(&d) {
                     continue;
@@ -593,7 +830,8 @@ impl Ctx<'_> {
                     self.push(it);
                 }
                 if new.files > 0 {
-                    let it = Item::new("Cline", "recent", format!("{what}, last {age}"), &d, &new).verdict(Verdict::Keep, "recent tasks", Action::None);
+                    let it = Item::new("Cline", "recent", format!("{what}, last {age}"), &d, &new)
+                        .verdict(Verdict::Keep, "recent tasks", Action::None);
                     self.push(it);
                 }
             }
@@ -610,7 +848,10 @@ impl Ctx<'_> {
                 self.worktree(harness, &d, container);
                 continue;
             }
-            let inner: Vec<PathBuf> = subdirs(&d).into_iter().filter(|p| git::is_linked_worktree(p)).collect();
+            let inner: Vec<PathBuf> = subdirs(&d)
+                .into_iter()
+                .filter(|p| git::is_linked_worktree(p))
+                .collect();
             if !inner.is_empty() {
                 for w in inner {
                     self.worktree(harness, &w, container);
@@ -638,7 +879,11 @@ impl Ctx<'_> {
         let mut builds: Vec<(PathBuf, &str, Measure)> = vec![];
         if !info.orphaned && info.error.is_none() {
             for (p, how) in find_build_dirs(wt, 3) {
-                let rel = p.strip_prefix(wt).unwrap_or(&p).to_string_lossy().replace('\\', "/");
+                let rel = p
+                    .strip_prefix(wt)
+                    .unwrap_or(&p)
+                    .to_string_lossy()
+                    .replace('\\', "/");
                 if git::is_ignored(wt, &rel) {
                     let m = walk::measure(&p);
                     walker.skip.insert(p.clone());
@@ -648,12 +893,23 @@ impl Ctx<'_> {
         }
         walker.skip.insert(wt.join(".git"));
         let m = walker.measure(wt);
-        let in_use: Vec<String> = crate::procs::cwds().into_iter().filter(|(_, _, c)| c.starts_with(wt)).map(|(p, n, _)| format!("{n}[{p}]")).collect();
-        let base = wt.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        let name = if info.orphaned { format!("former worktree {base}") } else { match &info.branch {
-            Some(b) => format!("worktree {b}"),
-            None => format!("worktree {base} (detached)"),
-        } };
+        let in_use: Vec<String> = crate::procs::cwds()
+            .into_iter()
+            .filter(|(_, _, c)| c.starts_with(wt))
+            .map(|(p, n, _)| format!("{n}[{p}]"))
+            .collect();
+        let base = wt
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let name = if info.orphaned {
+            format!("former worktree {base}")
+        } else {
+            match &info.branch {
+                Some(b) => format!("worktree {b}"),
+                None => format!("worktree {base} (detached)"),
+            }
+        };
         let fresh = !older_than(m.newest, self.opts.now, HOUR);
         let it = Item::new(harness, "worktree", name, wt, &m);
         let remove = Action::WorktreeRemove {
@@ -668,11 +924,30 @@ impl Ctx<'_> {
                 Action::Remove { paths: vec![wt.to_path_buf()], root: container.to_path_buf() },
             )
         } else if let Some(e) = &info.error {
-            it.verdict(Verdict::Keep, format!("git could not read it: {}", first_line(e)), Action::None)
+            it.verdict(
+                Verdict::Keep,
+                format!("git could not read it: {}", first_line(e)),
+                Action::None,
+            )
         } else if !in_use.is_empty() {
-            it.verdict(Verdict::Keep, format!("in use right now: {} has its working folder here", in_use.join(", ")), Action::None)
+            it.verdict(
+                Verdict::Keep,
+                format!(
+                    "in use right now: {} has its working folder here",
+                    in_use.join(", ")
+                ),
+                Action::None,
+            )
         } else if info.dirty > 0 {
-            it.verdict(Verdict::Keep, format!("{} uncommitted change{}: real work", info.dirty, plural(info.dirty)), Action::None)
+            it.verdict(
+                Verdict::Keep,
+                format!(
+                    "{} uncommitted change{}: real work",
+                    info.dirty,
+                    plural(info.dirty)
+                ),
+                Action::None,
+            )
         } else if info.unique > 0 {
             it.verdict(
                 Verdict::Review,
@@ -685,11 +960,22 @@ impl Ctx<'_> {
                 remove,
             )
         } else if fresh {
-            let a = units::age(units::age_secs(m.newest.unwrap_or(self.opts.now), self.opts.now));
-            let when = if a == "just now" { a } else { format!("{a} ago") };
+            let a = units::age(units::age_secs(
+                m.newest.unwrap_or(self.opts.now),
+                self.opts.now,
+            ));
+            let when = if a == "just now" {
+                a
+            } else {
+                format!("{a} ago")
+            };
             it.verdict(Verdict::Review, format!("clean and merged, but a file changed {when}: an agent may still be working in it"), remove)
         } else {
-            it.verdict(Verdict::Safe, "clean, and every commit is also on another branch or remote", remove)
+            it.verdict(
+                Verdict::Safe,
+                "clean, and every commit is also on another branch or remote",
+                remove,
+            )
         };
         let idx = self.push(it);
         if let Some(r) = &info.main_repo {
@@ -702,11 +988,24 @@ impl Ctx<'_> {
             if bm.bytes < 1_000_000 {
                 continue;
             }
-            let dn = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            let mut b = Item::new(harness, "build-output", format!("build output {dn}/"), &p, &bm).verdict(
+            let dn = p
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let mut b = Item::new(
+                harness,
+                "build-output",
+                format!("build output {dn}/"),
+                &p,
+                &bm,
+            )
+            .verdict(
                 Verdict::Safe,
                 format!("git-ignored and rebuildable ({how}); the worktree itself is untouched"),
-                Action::Remove { paths: vec![p.clone()], root: wt.to_path_buf() },
+                Action::Remove {
+                    paths: vec![p.clone()],
+                    root: wt.to_path_buf(),
+                },
             );
             b.parent = Some(idx);
             self.push(b);
@@ -719,12 +1018,18 @@ impl Ctx<'_> {
         let mut stale = Measure::default();
         let mut fresh = Measure::default();
         let mut stale_paths = vec![];
-        for e in std::fs::read_dir(&pack).map(|r| r.flatten().collect::<Vec<_>>()).unwrap_or_default() {
+        for e in std::fs::read_dir(&pack)
+            .map(|r| r.flatten().collect::<Vec<_>>())
+            .unwrap_or_default()
+        {
             let n = e.file_name().to_string_lossy().into_owned();
-            if !(n.starts_with("tmp_pack_") || n.starts_with("tmp_idx_") || n.starts_with(".tmp-")) {
+            if !(n.starts_with("tmp_pack_") || n.starts_with("tmp_idx_") || n.starts_with(".tmp-"))
+            {
                 continue;
             }
-            let Ok(md) = e.path().symlink_metadata() else { continue };
+            let Ok(md) = e.path().symlink_metadata() else {
+                continue;
+            };
             let t = md.modified().ok();
             if older_than(t, now, HOUR) {
                 stale.add_file(walk::allocated(&md), t);
@@ -734,15 +1039,23 @@ impl Ctx<'_> {
             }
         }
         let objs = repo.join(".git/objects");
-        for e in std::fs::read_dir(&objs).map(|r| r.flatten().collect::<Vec<_>>()).unwrap_or_default() {
+        for e in std::fs::read_dir(&objs)
+            .map(|r| r.flatten().collect::<Vec<_>>())
+            .unwrap_or_default()
+        {
             let n = e.file_name().to_string_lossy().into_owned();
-            if n.starts_with("incoming-") && older_than(e.metadata().ok().and_then(|m| m.modified().ok()), now, HOUR) {
+            if n.starts_with("incoming-")
+                && older_than(e.metadata().ok().and_then(|m| m.modified().ok()), now, HOUR)
+            {
                 let m = walk::measure(&e.path());
                 stale.merge(&m);
                 stale_paths.push(e.path());
             }
         }
-        let rname = repo.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let rname = repo
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
         if stale.files > 0 {
             let it = Item::new("Repos", "tmp-pack", format!("{rname}: {} half-written git packs", units::thousands(stale.files)), &pack, &stale).verdict(
                 Verdict::Safe,
@@ -761,21 +1074,50 @@ impl Ctx<'_> {
         }
         let pr = git::prunable(repo);
         if !pr.is_empty() {
-            let mut it = Item::new("Repos", "worktree-registration", format!("{rname}: {} stale worktree registration{}", pr.len(), plural(pr.len())), repo, &Measure::default())
-                .verdict(Verdict::Safe, "git still lists worktrees whose folders are gone (openai/codex#54891)", Action::WorktreePrune { repo: repo.to_path_buf() });
+            let mut it = Item::new(
+                "Repos",
+                "worktree-registration",
+                format!(
+                    "{rname}: {} stale worktree registration{}",
+                    pr.len(),
+                    plural(pr.len())
+                ),
+                repo,
+                &Measure::default(),
+            )
+            .verdict(
+                Verdict::Safe,
+                "git still lists worktrees whose folders are gone (openai/codex#54891)",
+                Action::WorktreePrune {
+                    repo: repo.to_path_buf(),
+                },
+            );
             it.reclaim = 0;
             self.push(it);
         }
         self.worktree_container("Claude Code", &repo.join(".claude/worktrees"));
-        for e in std::fs::read_dir(repo).map(|r| r.flatten().collect::<Vec<_>>()).unwrap_or_default() {
+        for e in std::fs::read_dir(repo)
+            .map(|r| r.flatten().collect::<Vec<_>>())
+            .unwrap_or_default()
+        {
             let n = e.file_name().to_string_lossy().into_owned();
             if n.starts_with(".aider.tags.cache") && is_dir(&e.path()) {
                 let m = walk::measure(&e.path());
                 if m.bytes > 0 {
-                    let it = Item::new("Aider", "aider-cache", format!("{rname}: Aider repo-map cache"), &e.path(), &m).verdict(
+                    let it = Item::new(
+                        "Aider",
+                        "aider-cache",
+                        format!("{rname}: Aider repo-map cache"),
+                        &e.path(),
+                        &m,
+                    )
+                    .verdict(
                         Verdict::Safe,
                         "Aider rebuilds its tag cache on the next run",
-                        Action::Remove { paths: vec![e.path()], root: repo.to_path_buf() },
+                        Action::Remove {
+                            paths: vec![e.path()],
+                            root: repo.to_path_buf(),
+                        },
                     );
                     self.push(it);
                 }
@@ -796,7 +1138,10 @@ fn find_build_dirs(root: &Path, depth: usize) -> Vec<(PathBuf, &'static str)> {
     let mut out = vec![];
     fn rec(p: &Path, d: usize, out: &mut Vec<(PathBuf, &'static str)>) {
         for c in subdirs(p) {
-            let n = c.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let n = c
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
             if n == ".git" {
                 continue;
             }
@@ -825,7 +1170,10 @@ pub fn find_repos(roots: &[PathBuf], depth: usize) -> Vec<PathBuf> {
             return;
         }
         for c in subdirs(p) {
-            let n = c.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let n = c
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
             if n.starts_with('.') || BUILD_DIRS.iter().any(|(b, _)| *b == n) || n == "Library" {
                 continue;
             }
@@ -845,7 +1193,19 @@ pub fn default_roots(env: &Env) -> Vec<PathBuf> {
             v.push(cwd);
         }
     }
-    for d in ["code", "src", "projects", "dev", "work", "Developer", "repos", "git", "workspace", "Projects", "Code"] {
+    for d in [
+        "code",
+        "src",
+        "projects",
+        "dev",
+        "work",
+        "Developer",
+        "repos",
+        "git",
+        "workspace",
+        "Projects",
+        "Code",
+    ] {
         let p = env.home.join(d);
         if is_dir(&p) && !v.contains(&p) {
             v.push(p);
@@ -855,7 +1215,12 @@ pub fn default_roots(env: &Env) -> Vec<PathBuf> {
 }
 
 pub fn dig(env: &Env, opts: &Opts) -> Report {
-    let mut cx = Ctx { env, opts, items: vec![], repos: vec![] };
+    let mut cx = Ctx {
+        env,
+        opts,
+        items: vec![],
+        repos: vec![],
+    };
     cx.codex();
     cx.crash_dumps();
     cx.claude();
@@ -880,28 +1245,51 @@ pub fn dig(env: &Env, opts: &Opts) -> Report {
             cx.repo(r);
         }
     }
-    let mut rep = Report { roots: opts.roots.clone(), repos: repos.len(), ..Default::default() };
+    let mut rep = Report {
+        roots: opts.roots.clone(),
+        repos: repos.len(),
+        ..Default::default()
+    };
     if !have_git {
-        rep.notes.push("git is not on PATH: worktrees and repos were not checked".into());
+        rep.notes
+            .push("git is not on PATH: worktrees and repos were not checked".into());
     }
     rep.items = order(cx.items);
     rep
 }
 
-pub const HARNESSES: &[&str] = &["Codex", "Claude Code", "OpenCode", "Gemini CLI", "Cline", "Cursor", "Aider", "Repos"];
+pub const HARNESSES: &[&str] = &[
+    "Codex",
+    "Claude Code",
+    "OpenCode",
+    "Gemini CLI",
+    "Cline",
+    "Cursor",
+    "Aider",
+    "Repos",
+];
 
 /// Group by harness, biggest first, children right after their parent; number from 101.
 fn order(items: Vec<Item>) -> Vec<Item> {
     let mut out: Vec<Item> = vec![];
     for h in HARNESSES {
-        let mut tops: Vec<usize> = (0..items.len()).filter(|&i| items[i].harness == *h && items[i].parent.is_none()).collect();
-        tops.sort_by(|&a, &b| items[b].bytes.cmp(&items[a].bytes).then(items[a].path.cmp(&items[b].path)));
+        let mut tops: Vec<usize> = (0..items.len())
+            .filter(|&i| items[i].harness == *h && items[i].parent.is_none())
+            .collect();
+        tops.sort_by(|&a, &b| {
+            items[b]
+                .bytes
+                .cmp(&items[a].bytes)
+                .then(items[a].path.cmp(&items[b].path))
+        });
         for t in tops {
             let new_parent = out.len();
             let mut it = items[t].clone();
             it.parent = None;
             out.push(it);
-            let mut kids: Vec<usize> = (0..items.len()).filter(|&i| items[i].parent == Some(t)).collect();
+            let mut kids: Vec<usize> = (0..items.len())
+                .filter(|&i| items[i].parent == Some(t))
+                .collect();
             kids.sort_by(|&a, &b| items[b].bytes.cmp(&items[a].bytes));
             for k in kids {
                 let mut c = items[k].clone();

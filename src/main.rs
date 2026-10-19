@@ -17,7 +17,8 @@ use render::Style;
 use std::path::PathBuf;
 use std::time::Duration;
 
-const HELP: &str = "spoilheap — what your coding agents left on this disk, and what is safe to delete
+const HELP: &str =
+    "spoilheap — what your coding agents left on this disk, and what is safe to delete
 
 USAGE
   spoilheap [--root DIR]... [--older 30d] [--all] [--json]
@@ -72,13 +73,36 @@ struct Args {
 }
 
 const FLAGS: &[&str] = &[
-    "--root", "--depth", "--older", "--all", "--json", "--home", "--no-color", "--safe", "--yes", "--every", "--rate", "--floor", "--path", "--ticks", "--verbose", "--help", "--version",
+    "--root",
+    "--depth",
+    "--older",
+    "--all",
+    "--json",
+    "--home",
+    "--no-color",
+    "--safe",
+    "--yes",
+    "--every",
+    "--rate",
+    "--floor",
+    "--path",
+    "--ticks",
+    "--verbose",
+    "--help",
+    "--version",
 ];
 
 fn suggest(bad: &str) -> String {
     let b = bad.trim_start_matches('-');
-    let best = FLAGS.iter().min_by_key(|f| lev(b, f.trim_start_matches('-'))).unwrap();
-    if lev(b, best.trim_start_matches('-')) <= 2 { format!(" (did you mean {best}?)") } else { String::new() }
+    let best = FLAGS
+        .iter()
+        .min_by_key(|f| lev(b, f.trim_start_matches('-')))
+        .unwrap();
+    if lev(b, best.trim_start_matches('-')) <= 2 {
+        format!(" (did you mean {best}?)")
+    } else {
+        String::new()
+    }
 }
 
 fn lev(a: &str, b: &str) -> usize {
@@ -88,7 +112,9 @@ fn lev(a: &str, b: &str) -> usize {
     for i in 1..=a.len() {
         let mut cur = vec![i; b.len() + 1];
         for j in 1..=b.len() {
-            cur[j] = (prev[j] + 1).min(cur[j - 1] + 1).min(prev[j - 1] + usize::from(a[i - 1] != b[j - 1]));
+            cur[j] = (prev[j] + 1)
+                .min(cur[j - 1] + 1)
+                .min(prev[j - 1] + usize::from(a[i - 1] != b[j - 1]));
         }
         prev = cur;
     }
@@ -124,7 +150,10 @@ fn parse() -> Result<Args, String> {
             _ => (arg.clone(), None),
         };
         let mut val = |name: &str| -> Result<String, String> {
-            inline.clone().or_else(|| it.next()).ok_or_else(|| format!("{name} needs a value"))
+            inline
+                .clone()
+                .or_else(|| it.next())
+                .ok_or_else(|| format!("{name} needs a value"))
         };
         match flag.as_str() {
             "-h" | "--help" => a.cmd = "help".into(),
@@ -136,11 +165,17 @@ fn parse() -> Result<Args, String> {
                     return Err(format!("--root {v}: no such folder"));
                 }
                 if !p.is_dir() {
-                    return Err(format!("--root {v} is a file; pass the folder that holds your repositories"));
+                    return Err(format!(
+                        "--root {v} is a file; pass the folder that holds your repositories"
+                    ));
                 }
                 a.roots.push(std::fs::canonicalize(&p).unwrap_or(p));
             }
-            "--depth" => a.depth = val("--depth")?.parse().map_err(|_| "--depth needs a whole number, like 4".to_string())?,
+            "--depth" => {
+                a.depth = val("--depth")?
+                    .parse()
+                    .map_err(|_| "--depth needs a whole number, like 4".to_string())?
+            }
             "--older" => a.older = units::parse_duration(&val("--older")?)?,
             "--all" => a.all = true,
             "--json" => a.json = true,
@@ -168,13 +203,28 @@ fn parse() -> Result<Args, String> {
                 a.floor = units::parse_amount(&a.floor_raw)?;
             }
             "--path" => a.paths.push(expand(&val("--path")?)),
-            "--ticks" => a.ticks = Some(val("--ticks")?.parse().map_err(|_| "--ticks needs a number".to_string())?),
-            f if f.starts_with('-') && f.len() > 1 && f.parse::<i64>().is_err() => return Err(format!("unknown option {f}{}", suggest(f))),
+            "--ticks" => {
+                a.ticks = Some(
+                    val("--ticks")?
+                        .parse()
+                        .map_err(|_| "--ticks needs a number".to_string())?,
+                )
+            }
+            f if f.starts_with('-') && f.len() > 1 && f.parse::<i64>().is_err() => {
+                return Err(format!("unknown option {f}{}", suggest(f)));
+            }
             _ => {
-                if first && ["dig", "clean", "watch", "guard", "hook", "mcp", "paths", "help", "version"].contains(&arg.as_str()) {
+                if first
+                    && [
+                        "dig", "clean", "watch", "guard", "hook", "mcp", "paths", "help", "version",
+                    ]
+                    .contains(&arg.as_str())
+                {
                     a.cmd = arg.clone();
                 } else if first && !arg.chars().all(|c| c.is_ascii_digit()) {
-                    return Err(format!("unknown command '{arg}'. Commands: dig (default), clean, watch, guard, hook, mcp, paths"));
+                    return Err(format!(
+                        "unknown command '{arg}'. Commands: dig (default), clean, watch, guard, hook, mcp, paths"
+                    ));
                 } else {
                     a.pos.push(arg.clone());
                 }
@@ -187,7 +237,11 @@ fn parse() -> Result<Args, String> {
 
 fn expand(s: &str) -> PathBuf {
     if let Some(rest) = s.strip_prefix("~/").or_else(|| s.strip_prefix("~\\")) {
-        let home = if cfg!(windows) { std::env::var("USERPROFILE") } else { std::env::var("HOME") };
+        let home = if cfg!(windows) {
+            std::env::var("USERPROFILE")
+        } else {
+            std::env::var("HOME")
+        };
         if let Ok(h) = home {
             return PathBuf::from(h).join(rest);
         }
@@ -196,7 +250,11 @@ fn expand(s: &str) -> PathBuf {
 }
 
 fn style(a: &Args, stdout: bool) -> Style {
-    let mut s = if stdout { Style::stdout() } else { Style::stderr() };
+    let mut s = if stdout {
+        Style::stdout()
+    } else {
+        Style::stderr()
+    };
     if a.no_color {
         s.color = false;
     }
@@ -215,7 +273,10 @@ fn disks(env: &Env, rep: &dig::Report) -> Vec<render::DiskLine> {
         }
         seen.push(d);
         if let Ok(s) = disk::space(&p) {
-            v.push(render::DiskLine { mount: mount_point(&disk::existing_ancestor(&p)), space: s });
+            v.push(render::DiskLine {
+                mount: mount_point(&disk::existing_ancestor(&p)),
+                space: s,
+            });
         }
     }
     v
@@ -239,14 +300,26 @@ fn main() {
         Ok(a) => a,
         Err(e) => {
             let st = Style::stderr();
-            eprintln!("{} {e}\n{}", st.red("spoilheap:"), st.dim("run `spoilheap --help` for usage"));
+            eprintln!(
+                "{} {e}\n{}",
+                st.red("spoilheap:"),
+                st.dim("run `spoilheap --help` for usage")
+            );
             std::process::exit(64);
         }
     };
     let env = Env::from_process(a.home.clone());
-    let roots_given = !a.roots.is_empty();
-    let roots = if roots_given { a.roots.clone() } else { dig::default_roots(&env) };
-    let opts = Opts { older: a.older, roots, roots_given, now: std::time::SystemTime::now(), repo_depth: a.depth };
+    let roots = if !a.roots.is_empty() {
+        a.roots.clone()
+    } else {
+        dig::default_roots(&env)
+    };
+    let opts = Opts {
+        older: a.older,
+        roots,
+        now: std::time::SystemTime::now(),
+        repo_depth: a.depth,
+    };
     let code = match a.cmd.as_str() {
         "help" => {
             println!("{HELP}");
@@ -259,16 +332,30 @@ fn main() {
         "dig" => {
             let st = style(&a, true);
             if !a.pos.is_empty() {
-                eprintln!("{} `spoilheap {}` lists, it does not clear. To clear those items: spoilheap clean {}", st.yellow("note"), a.pos.join(" "), a.pos.join(" "));
+                eprintln!(
+                    "{} `spoilheap {}` lists, it does not clear. To clear those items: spoilheap clean {}",
+                    st.yellow("note"),
+                    a.pos.join(" "),
+                    a.pos.join(" ")
+                );
             }
             let rep = dig::dig(&env, &opts);
             let ds = disks(&env, &rep);
             out::save_ids(&env, &rep);
             if a.json {
-                println!("{}", serde_json::to_string_pretty(&out::report(&rep, &ds)).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&out::report(&rep, &ds)).unwrap()
+                );
             } else {
                 let min = if a.all { 0 } else { 1_000_000 };
-                let hidden = rep.items.iter().filter(|i| i.bytes < min && i.kind != "worktree-registration" && i.kind != "worktree").count();
+                let hidden = rep
+                    .items
+                    .iter()
+                    .filter(|i| {
+                        i.bytes < min && i.kind != "worktree-registration" && i.kind != "worktree"
+                    })
+                    .count();
                 print!("{}", render::report(&env, &rep, &ds, &st, min, hidden));
             }
             0
@@ -277,10 +364,17 @@ fn main() {
             let st = style(&a, true);
             let mut ids = vec![];
             for p in &a.pos {
-                match p.trim_start_matches('[').trim_end_matches(']').parse::<u32>() {
+                match p
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .parse::<u32>()
+                {
                     Ok(n) => ids.push(n),
                     Err(_) => {
-                        eprintln!("{} '{p}' is not an item number. Use the numbers in brackets from `spoilheap`, e.g. spoilheap clean 104", st.red("spoilheap:"));
+                        eprintln!(
+                            "{} '{p}' is not an item number. Use the numbers in brackets from `spoilheap`, e.g. spoilheap clean 104",
+                            st.red("spoilheap:")
+                        );
                         std::process::exit(64);
                     }
                 }
@@ -295,10 +389,23 @@ fn main() {
             let rep = dig::dig(&env, &opts);
             if let Some((_, age)) = out::load_ids(&env) {
                 if !ids.is_empty() && age > 86400 {
-                    eprintln!("{} those numbers come from a dig {} ago; run `spoilheap` again if unsure", st.yellow("note"), units::age(age));
+                    eprintln!(
+                        "{} those numbers come from a dig {} ago; run `spoilheap` again if unsure",
+                        st.yellow("note"),
+                        units::age(age)
+                    );
                 }
             }
-            let c = clean::run(&env, &rep, &clean::Choice { safe: a.safe, ids, yes: a.yes }, &st);
+            let c = clean::run(
+                &env,
+                &rep,
+                &clean::Choice {
+                    safe: a.safe,
+                    ids,
+                    yes: a.yes,
+                },
+                &st,
+            );
             if !a.yes {
                 // keep the id map from the dig the user saw, not this re-scan
             }
@@ -306,12 +413,29 @@ fn main() {
         }
         "watch" => {
             let st = style(&a, true);
-            watch::run(&env, &opts, &watch::WatchOpts { every: a.every, rate: a.rate, floor: a.floor, ticks: a.ticks }, &st)
+            watch::run(
+                &env,
+                &opts,
+                &watch::WatchOpts {
+                    every: a.every,
+                    rate: a.rate,
+                    floor: a.floor,
+                    ticks: a.ticks,
+                },
+                &st,
+            )
         }
-        "guard" => guard::run(&env, a.floor, a.paths.clone(), !a.verbose && !render::is_tty()),
+        "guard" => guard::run(
+            &env,
+            a.floor,
+            a.paths.clone(),
+            !a.verbose && !render::is_tty(),
+        ),
         "hook" => match a.pos.first() {
             None => {
-                eprintln!("spoilheap: which agent? `spoilheap hook claude` or `spoilheap hook codex`");
+                eprintln!(
+                    "spoilheap: which agent? `spoilheap hook claude` or `spoilheap hook codex`"
+                );
                 64
             }
             Some(t) => match guard::hook_snippet(t, &a.floor_raw) {
@@ -336,18 +460,35 @@ fn main() {
                 ("Cline".into(), env.h(".cline/data")),
             ];
             for ed in ["Code", "Cursor", "Windsurf", "VSCodium"] {
-                list.push((format!("Cline in {ed}"), env.app_support().join(ed).join("User/globalStorage/saoudrizwan.claude-dev")));
+                list.push((
+                    format!("Cline in {ed}"),
+                    env.app_support()
+                        .join(ed)
+                        .join("User/globalStorage/saoudrizwan.claude-dev"),
+                ));
             }
             for app in ["Codex", "ChatGPT", "Claude", "Cursor"] {
-                list.push((format!("{app} crash dumps"), env.app_support().join(app).join("Crashpad")));
+                list.push((
+                    format!("{app} crash dumps"),
+                    env.app_support().join(app).join("Crashpad"),
+                ));
             }
             list.push(("bun cache".into(), env.h(".bun/install/cache/@openai")));
             for (n, p) in list {
-                let mark = if p.exists() { st.green("found  ") } else { st.dim("absent ") };
+                let mark = if p.exists() {
+                    st.green("found  ")
+                } else {
+                    st.dim("absent ")
+                };
                 println!("{mark} {:<20} {}", n, env.tilde(&p));
             }
             for r in &opts.roots {
-                println!("{} {:<20} {}", st.green("root   "), "repositories", env.tilde(r));
+                println!(
+                    "{} {:<20} {}",
+                    st.green("root   "),
+                    "repositories",
+                    env.tilde(r)
+                );
             }
             0
         }

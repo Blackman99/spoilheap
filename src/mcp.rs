@@ -31,9 +31,16 @@ fn tools() -> Value {
 fn call(env: &Env, name: &str, args: &Value) -> Result<(String, Value), String> {
     match name {
         "disk_status" => {
-            let floor = crate::units::parse_amount(args.get("floor").and_then(|v| v.as_str()).unwrap_or("10GB"))?;
-            let path = args.get("path").and_then(|v| v.as_str()).map(std::path::PathBuf::from).unwrap_or_else(|| env.home.clone());
-            let s = crate::disk::space(&path).map_err(|e| format!("cannot stat {}: {e}", path.display()))?;
+            let floor = crate::units::parse_amount(
+                args.get("floor").and_then(|v| v.as_str()).unwrap_or("10GB"),
+            )?;
+            let path = args
+                .get("path")
+                .and_then(|v| v.as_str())
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| env.home.clone());
+            let s = crate::disk::space(&path)
+                .map_err(|e| format!("cannot stat {}: {e}", path.display()))?;
             let f = floor.resolve(s.total);
             let ok = s.free >= f;
             let text = format!(
@@ -41,26 +48,62 @@ fn call(env: &Env, name: &str, args: &Value) -> Result<(String, Value), String> 
                 units::bytes(s.free),
                 units::bytes(s.total),
                 env.tilde(&crate::disk::existing_ancestor(&path)),
-                if ok { format!("above the {} floor", units::bytes(f)) } else { format!("UNDER the {} floor: stop writing and ask the user to free space (spoilheap clean --safe)", units::bytes(f)) }
+                if ok {
+                    format!("above the {} floor", units::bytes(f))
+                } else {
+                    format!(
+                        "UNDER the {} floor: stop writing and ask the user to free space (spoilheap clean --safe)",
+                        units::bytes(f)
+                    )
+                }
             );
-            Ok((text, json!({"free_bytes": s.free, "total_bytes": s.total, "floor_bytes": f, "ok": ok})))
+            Ok((
+                text,
+                json!({"free_bytes": s.free, "total_bytes": s.total, "floor_bytes": f, "ok": ok}),
+            ))
         }
         "disk_leftovers" => {
-            let min = args.get("min_bytes").and_then(|v| v.as_u64()).unwrap_or(1_000_000);
-            let opts = Opts { older: std::time::Duration::from_secs(30 * 86400), roots: vec![], roots_given: false, now: std::time::SystemTime::now(), repo_depth: 0 };
+            let min = args
+                .get("min_bytes")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(1_000_000);
+            let opts = Opts {
+                older: std::time::Duration::from_secs(30 * 86400),
+                roots: vec![],
+                now: std::time::SystemTime::now(),
+                repo_depth: 0,
+            };
             let rep = dig::dig(env, &opts);
             crate::out::save_ids(env, &rep);
             let mut lines = vec![];
             let (all, safe, _, _) = crate::render::totals(&rep.items);
-            lines.push(format!("Agents left {} in {} places; {} is SAFE to clear.", units::bytes(all), rep.items.len(), units::bytes(safe)));
+            lines.push(format!(
+                "Agents left {} in {} places; {} is SAFE to clear.",
+                units::bytes(all),
+                rep.items.len(),
+                units::bytes(safe)
+            ));
             for i in rep.items.iter().filter(|i| i.bytes >= min) {
-                lines.push(format!("[{}] {} {} · {} · {} · {}", i.id, i.verdict.word(), i.harness, i.label, units::bytes(i.bytes), i.reason));
+                lines.push(format!(
+                    "[{}] {} {} · {} · {} · {}",
+                    i.id,
+                    i.verdict.word(),
+                    i.harness,
+                    i.label,
+                    units::bytes(i.bytes),
+                    i.reason
+                ));
             }
             if rep.items.iter().any(|i| i.verdict == Verdict::Safe) {
-                lines.push("The user can clear SAFE items with: spoilheap clean --safe --yes".into());
+                lines.push(
+                    "The user can clear SAFE items with: spoilheap clean --safe --yes".into(),
+                );
             }
             let now = std::time::SystemTime::now();
-            Ok((lines.join("\n"), json!({"items": rep.items.iter().filter(|i| i.bytes >= min).map(|i| crate::out::item(i, now)).collect::<Vec<_>>()})))
+            Ok((
+                lines.join("\n"),
+                json!({"items": rep.items.iter().filter(|i| i.bytes >= min).map(|i| crate::out::item(i, now)).collect::<Vec<_>>()}),
+            ))
         }
         _ => Err(format!("unknown tool {name}")),
     }
@@ -75,7 +118,11 @@ pub fn serve(env: &Env) -> i32 {
             continue;
         }
         let Ok(req) = serde_json::from_str::<Value>(&line) else {
-            let _ = writeln!(out, "{}", json!({"jsonrpc": "2.0", "id": null, "error": {"code": -32700, "message": "parse error"}}));
+            let _ = writeln!(
+                out,
+                "{}",
+                json!({"jsonrpc": "2.0", "id": null, "error": {"code": -32700, "message": "parse error"}})
+            );
             continue;
         };
         let id = req.get("id").cloned();
@@ -93,11 +140,17 @@ pub fn serve(env: &Env) -> i32 {
                 let name = req["params"]["name"].as_str().unwrap_or("");
                 let args = req["params"].get("arguments").cloned().unwrap_or(json!({}));
                 match call(env, name, &args) {
-                    Ok((text, data)) => json!({"jsonrpc": "2.0", "id": id, "result": {"content": [{"type": "text", "text": text}], "structuredContent": data, "isError": false}}),
-                    Err(e) => json!({"jsonrpc": "2.0", "id": id, "result": {"content": [{"type": "text", "text": e}], "isError": true}}),
+                    Ok((text, data)) => {
+                        json!({"jsonrpc": "2.0", "id": id, "result": {"content": [{"type": "text", "text": text}], "structuredContent": data, "isError": false}})
+                    }
+                    Err(e) => {
+                        json!({"jsonrpc": "2.0", "id": id, "result": {"content": [{"type": "text", "text": e}], "isError": true}})
+                    }
                 }
             }
-            _ => json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32601, "message": format!("method not found: {method}")}}),
+            _ => {
+                json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32601, "message": format!("method not found: {method}")}})
+            }
         };
         let _ = writeln!(out, "{resp}");
         let _ = out.flush();

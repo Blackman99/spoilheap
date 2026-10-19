@@ -23,7 +23,10 @@ pub fn select<'a>(env: &Env, rep: &'a Report, ch: &Choice, err: &mut Vec<String>
         let map = crate::out::load_ids(env);
         for id in &ch.ids {
             let found = match &map {
-                Some((m, _)) => m.iter().find(|(i, _)| i == id).and_then(|(_, key)| rep.items.iter().find(|it| &it.key() == key)),
+                Some((m, _)) => m
+                    .iter()
+                    .find(|(i, _)| i == id)
+                    .and_then(|(_, key)| rep.items.iter().find(|it| &it.key() == key)),
                 None => rep.items.iter().find(|it| it.id == *id),
             };
             match found {
@@ -45,11 +48,21 @@ fn remove_paths(paths: &[PathBuf], root: &Path) -> (u64, Vec<String>) {
     for p in paths {
         // only ever inside the item's root, never through a symlink
         if !p.starts_with(root) {
-            errs.push(format!("refused {} (outside {})", p.display(), root.display()));
+            errs.push(format!(
+                "refused {} (outside {})",
+                p.display(),
+                root.display()
+            ));
             continue;
         }
-        let Ok(md) = std::fs::symlink_metadata(p) else { continue };
-        let r = if md.is_dir() { std::fs::remove_dir_all(p) } else { std::fs::remove_file(p) };
+        let Ok(md) = std::fs::symlink_metadata(p) else {
+            continue;
+        };
+        let r = if md.is_dir() {
+            std::fs::remove_dir_all(p)
+        } else {
+            std::fs::remove_file(p)
+        };
         match r {
             Ok(()) => n += 1,
             Err(e) => errs.push(format!("{}: {e}", p.display())),
@@ -75,10 +88,19 @@ pub fn describe(env: &Env, it: &Item) -> String {
             if paths.len() == 1 && paths[0] == it.path {
                 format!("delete {}", env.tilde(&it.path))
             } else {
-                format!("delete {} {} under {}", units::thousands(paths.len() as u64), if paths.len() == 1 { "entry" } else { "entries" }, env.tilde(&it.path))
+                format!(
+                    "delete {} {} under {}",
+                    units::thousands(paths.len() as u64),
+                    if paths.len() == 1 { "entry" } else { "entries" },
+                    env.tilde(&it.path)
+                )
             }
         }
-        Action::WorktreeRemove { repo, worktree, .. } => format!("git -C {} worktree remove {}", env.tilde(repo), env.tilde(worktree)),
+        Action::WorktreeRemove { repo, worktree, .. } => format!(
+            "git -C {} worktree remove {}",
+            env.tilde(repo),
+            env.tilde(worktree)
+        ),
         Action::WorktreePrune { repo } => format!("git -C {} worktree prune", env.tilde(repo)),
         Action::Manual(c) => format!("by hand: {c}"),
         Action::None => "nothing to do".into(),
@@ -93,29 +115,60 @@ pub fn run(env: &Env, rep: &Report, ch: &Choice, st: &Style) -> i32 {
     }
     if chosen.is_empty() {
         if ch.safe {
-            println!("Nothing is SAFE to clear right now. `spoilheap` lists REVIEW items you can pick by number.");
+            println!(
+                "Nothing is SAFE to clear right now. `spoilheap` lists REVIEW items you can pick by number."
+            );
             return 0;
         }
         return if errs.is_empty() { 0 } else { 1 };
     }
-    let probe = chosen.first().map(|i| i.path.clone()).unwrap_or_else(|| env.home.clone());
+    let probe = chosen
+        .first()
+        .map(|i| i.path.clone())
+        .unwrap_or_else(|| env.home.clone());
     let before = disk::space(&probe).ok();
     let mut planned = 0u64;
     let mut code = 0;
-    println!("{}", st.bold(if ch.yes { "clearing" } else { "plan (dry run)" }));
+    println!(
+        "{}",
+        st.bold(if ch.yes { "clearing" } else { "plan (dry run)" })
+    );
     for it in &chosen {
         let tag = format!("[{}]", it.id);
         if it.verdict == Verdict::Keep {
-            println!("  {} {} {} {}", st.dim(&tag), st.verdict(it.verdict), it.label, st.dim(&format!("— KEEP is never touched ({})", it.reason)));
+            println!(
+                "  {} {} {} {}",
+                st.dim(&tag),
+                st.verdict(it.verdict),
+                it.label,
+                st.dim(&format!("— KEEP is never touched ({})", it.reason))
+            );
             continue;
         }
         if let Action::Manual(c) = &it.action {
-            println!("  {} {} {}  {}", st.dim(&tag), st.verdict(it.verdict), it.label, st.dim("— spoilheap never edits a database; run:"));
+            println!(
+                "  {} {} {}  {}",
+                st.dim(&tag),
+                st.verdict(it.verdict),
+                it.label,
+                st.dim("— spoilheap never edits a database; run:")
+            );
             println!("        {c}");
             continue;
         }
         let what = describe(env, it);
-        println!("  {} {} {:<44} {:>9}  {}", st.dim(&tag), st.verdict(it.verdict), crate::render::clip(&it.label, 44), if it.reclaim == 0 { "—".to_string() } else { units::bytes(it.reclaim) }, st.dim(&what));
+        println!(
+            "  {} {} {:<44} {:>9}  {}",
+            st.dim(&tag),
+            st.verdict(it.verdict),
+            crate::render::clip(&it.label, 44),
+            if it.reclaim == 0 {
+                "—".to_string()
+            } else {
+                units::bytes(it.reclaim)
+            },
+            st.dim(&what)
+        );
         planned += it.reclaim;
         if !ch.yes {
             continue;
@@ -123,15 +176,29 @@ pub fn run(env: &Env, rep: &Report, ch: &Choice, st: &Style) -> i32 {
         let res: Result<(), String> = match &it.action {
             Action::Remove { paths, root } => {
                 let (_, e) = remove_paths(paths, root);
-                if e.is_empty() { Ok(()) } else { Err(e.join("; ")) }
+                if e.is_empty() {
+                    Ok(())
+                } else {
+                    Err(e.join("; "))
+                }
             }
-            Action::WorktreeRemove { repo, worktree, container } => {
+            Action::WorktreeRemove {
+                repo,
+                worktree,
+                container,
+            } => {
                 // re-check right before acting: an agent may have written since the dig
                 let now = git::analyze(worktree);
                 if now.dirty > 0 {
-                    Err(format!("now has {} uncommitted change(s); left alone", now.dirty))
+                    Err(format!(
+                        "now has {} uncommitted change(s); left alone",
+                        now.dirty
+                    ))
                 } else {
-                    match git::git(repo, &["worktree", "remove", &worktree.display().to_string()]) {
+                    match git::git(
+                        repo,
+                        &["worktree", "remove", &worktree.display().to_string()],
+                    ) {
                         Ok(_) => {
                             if let Some(c) = container {
                                 let mut d = worktree.parent();
@@ -160,15 +227,28 @@ pub fn run(env: &Env, rep: &Report, ch: &Choice, st: &Style) -> i32 {
         }
     }
     if !ch.yes {
-        println!("\n{} would free {}. Nothing was deleted. Run the same command with --yes to do it.", st.bold("dry run:"), units::bytes(planned));
+        println!(
+            "\n{} would free {}. Nothing was deleted. Run the same command with --yes to do it.",
+            st.bold("dry run:"),
+            units::bytes(planned)
+        );
         return code;
     }
     if let (Some(b), Ok(a)) = (before, disk::space(&probe)) {
         let gained = a.free.saturating_sub(b.free);
-        println!("\nfree space {} → {} (+{})", units::bytes(b.free), units::bytes(a.free), units::bytes(gained));
+        println!(
+            "\nfree space {} → {} (+{})",
+            units::bytes(b.free),
+            units::bytes(a.free),
+            units::bytes(gained)
+        );
         if planned > 2_000_000_000 && gained * 10 < planned * 7 {
             let running = crate::procs::running_agents(&crate::procs::list());
-            let who = if running.is_empty() { "a running process".to_string() } else { running.join(", ") };
+            let who = if running.is_empty() {
+                "a running process".to_string()
+            } else {
+                running.join(", ")
+            };
             println!(
                 "{} the disk got back less than planned. Deleted files that {who} still has open are only freed when it exits.",
                 st.yellow("note")

@@ -7,14 +7,19 @@ use serde_json::{Value, json};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn secs(t: Option<SystemTime>, now: SystemTime) -> Value {
-    t.map(|t| json!(units::age_secs(t, now))).unwrap_or(Value::Null)
+    t.map(|t| json!(units::age_secs(t, now)))
+        .unwrap_or(Value::Null)
 }
 
 pub fn action(a: &Action) -> Value {
     match a {
         Action::Remove { paths, .. } => json!({"type": "remove", "paths": paths.len()}),
-        Action::WorktreeRemove { repo, worktree, .. } => json!({"type": "git-worktree-remove", "command": format!("git -C '{}' worktree remove '{}'", repo.display(), worktree.display())}),
-        Action::WorktreePrune { repo } => json!({"type": "git-worktree-prune", "command": format!("git -C '{}' worktree prune", repo.display())}),
+        Action::WorktreeRemove { repo, worktree, .. } => {
+            json!({"type": "git-worktree-remove", "command": format!("git -C '{}' worktree remove '{}'", repo.display(), worktree.display())})
+        }
+        Action::WorktreePrune { repo } => {
+            json!({"type": "git-worktree-prune", "command": format!("git -C '{}' worktree prune", repo.display())})
+        }
         Action::Manual(c) => json!({"type": "manual", "command": c}),
         Action::None => json!({"type": "none"}),
     }
@@ -74,7 +79,14 @@ pub fn load_ids(env: &Env) -> Option<(Vec<(u32, String)>, u64)> {
     let s = std::fs::read_to_string(env.cache_dir().join("last.json")).ok()?;
     let v: Value = serde_json::from_str(&s).ok()?;
     let at = v["generated_at"].as_u64().unwrap_or(0);
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-    let items = v["items"].as_array()?.iter().filter_map(|i| Some((i["id"].as_u64()? as u32, i["key"].as_str()?.to_string()))).collect();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let items = v["items"]
+        .as_array()?
+        .iter()
+        .filter_map(|i| Some((i["id"].as_u64()? as u32, i["key"].as_str()?.to_string())))
+        .collect();
     Some((items, now.saturating_sub(at)))
 }

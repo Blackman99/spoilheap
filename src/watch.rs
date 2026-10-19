@@ -6,7 +6,7 @@ use crate::procs;
 use crate::render::Style;
 use crate::units::{self, Amount};
 use crate::walk::{self, Walker};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 pub struct WatchOpts {
@@ -40,14 +40,14 @@ pub fn targets(env: &Env, rep: &dig::Report) -> Vec<PathBuf> {
     v
 }
 
-fn newest_files(dir: &PathBuf, n: usize) -> Vec<PathBuf> {
+fn newest_files(dir: &Path, n: usize) -> Vec<PathBuf> {
     let mut all: Vec<(std::time::SystemTime, PathBuf)> = vec![];
     Walker::new().each_file(dir, &mut |p, md| {
         if let Ok(t) = md.modified() {
             all.push((t, p.to_path_buf()));
         }
     });
-    all.sort_by(|a, b| b.0.cmp(&a.0));
+    all.sort_by_key(|a| std::cmp::Reverse(a.0));
     all.into_iter().take(n).map(|(_, p)| p).collect()
 }
 
@@ -62,7 +62,9 @@ pub fn run(env: &Env, opts: &Opts, w: &WatchOpts, st: &Style) -> i32 {
         }
     }
     if tg.is_empty() {
-        println!("Nothing to watch: no agent folders found. Pass --root ~/code to watch your repos' git packs.");
+        println!(
+            "Nothing to watch: no agent folders found. Pass --root ~/code to watch your repos' git packs."
+        );
         return 0;
     }
     println!(
@@ -98,7 +100,12 @@ pub fn run(env: &Env, opts: &Opts, w: &WatchOpts, st: &Style) -> i32 {
             any = true;
             let per_min = (delta.unsigned_abs() as f64 * 60.0 / dt) as u64;
             let sign = if delta > 0 { "+" } else { "−" };
-            let line = format!("{clock}  {sign}{:>9}  {:>10}/min  {}", units::bytes(delta.unsigned_abs()), units::bytes(per_min), env.tilde(t));
+            let line = format!(
+                "{clock}  {sign}{:>9}  {:>10}/min  {}",
+                units::bytes(delta.unsigned_abs()),
+                units::bytes(per_min),
+                env.tilde(t)
+            );
             if delta > 0 && per_min >= w.rate {
                 println!("{}", st.red(&format!("{line}  RUNAWAY")));
                 let files = newest_files(t, 12);
@@ -108,7 +115,12 @@ pub fn run(env: &Env, opts: &Opts, w: &WatchOpts, st: &Style) -> i32 {
                 let ps = procs::list();
                 let pids = procs::writers(t, &files);
                 if pids.is_empty() {
-                    println!("          {}", st.dim("no process has a file open there right now (it may write in bursts)"));
+                    println!(
+                        "          {}",
+                        st.dim(
+                            "no process has a file open there right now (it may write in bursts)"
+                        )
+                    );
                 }
                 for p in pids.iter().take(4) {
                     println!("          writer: {}", procs::chain(&ps, *p));
@@ -119,7 +131,15 @@ pub fn run(env: &Env, opts: &Opts, w: &WatchOpts, st: &Style) -> i32 {
         }
         for c in crate::guard::checks(env, &[], w.floor) {
             if c.space.free < c.floor {
-                println!("{}", st.red(&format!("{clock}  only {} free on {} (floor {}): spoilheap clean --safe", units::bytes(c.space.free), env.tilde(&c.path), units::bytes(c.floor))));
+                println!(
+                    "{}",
+                    st.red(&format!(
+                        "{clock}  only {} free on {} (floor {}): spoilheap clean --safe",
+                        units::bytes(c.space.free),
+                        env.tilde(&c.path),
+                        units::bytes(c.floor)
+                    ))
+                );
                 any = true;
             }
         }
@@ -127,7 +147,13 @@ pub fn run(env: &Env, opts: &Opts, w: &WatchOpts, st: &Style) -> i32 {
             quiet_since = Instant::now();
         } else if quiet_since.elapsed() >= Duration::from_secs(60) {
             let s = disk::space(&env.home).ok();
-            println!("{}", st.dim(&format!("{clock}  quiet · {} free", s.map(|s| units::bytes(s.free)).unwrap_or_default())));
+            println!(
+                "{}",
+                st.dim(&format!(
+                    "{clock}  quiet · {} free",
+                    s.map(|s| units::bytes(s.free)).unwrap_or_default()
+                ))
+            );
             quiet_since = Instant::now();
         }
         if w.ticks.is_some_and(|n| tick >= n) {
@@ -137,7 +163,10 @@ pub fn run(env: &Env, opts: &Opts, w: &WatchOpts, st: &Style) -> i32 {
 }
 
 fn clock() -> String {
-    let s = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let s = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let off = local_offset();
     let t = (s as i64 + off).rem_euclid(86400);
     format!("{:02}:{:02}:{:02}", t / 3600, (t / 60) % 60, t % 60)

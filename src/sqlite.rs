@@ -44,7 +44,11 @@ pub fn parse(b: &[u8; 100], file_len: u64) -> Option<Header> {
         page_count = file_len / page_size;
     }
     let free_pages = be32(36).min(page_count);
-    Some(Header { page_size, page_count, free_pages })
+    Some(Header {
+        page_size,
+        page_count,
+        free_pages,
+    })
 }
 
 /// Largest tables by bytes, via the sqlite3 CLI in read-only mode (needs the dbstat

@@ -14,7 +14,11 @@ impl Space {
         self.total.saturating_sub(self.free)
     }
     pub fn free_pct(&self) -> f64 {
-        if self.total == 0 { 0.0 } else { self.free as f64 * 100.0 / self.total as f64 }
+        if self.total == 0 {
+            0.0
+        } else {
+            self.free as f64 * 100.0 / self.total as f64
+        }
     }
 }
 
@@ -28,7 +32,10 @@ fn fake() -> Option<Space> {
         Some(crate::units::Amount::Bytes(b)) => b,
         _ => 500_000_000_000,
     };
-    Some(Space { free: free.resolve(total), total })
+    Some(Space {
+        free: free.resolve(total),
+        total,
+    })
 }
 
 pub fn space(path: &Path) -> std::io::Result<Space> {
@@ -55,7 +62,9 @@ pub fn device(path: &Path) -> Option<u64> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        std::fs::metadata(existing_ancestor(path)).ok().map(|m| m.dev())
+        std::fs::metadata(existing_ancestor(path))
+            .ok()
+            .map(|m| m.dev())
     }
     #[cfg(not(unix))]
     {
@@ -73,15 +82,23 @@ mod imp {
     use std::path::Path;
 
     pub fn space(p: &Path) -> std::io::Result<Space> {
-        let c = CString::new(p.as_os_str().as_bytes())
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "path has a NUL byte"))?;
+        let c = CString::new(p.as_os_str().as_bytes()).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "path has a NUL byte")
+        })?;
         let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
         let rc = unsafe { libc::statvfs(c.as_ptr(), &mut st) };
         if rc != 0 {
             return Err(std::io::Error::last_os_error());
         }
-        let frsize = if st.f_frsize > 0 { st.f_frsize as u64 } else { st.f_bsize as u64 };
-        Ok(Space { total: st.f_blocks as u64 * frsize, free: st.f_bavail as u64 * frsize })
+        let frsize = if st.f_frsize > 0 {
+            st.f_frsize as u64
+        } else {
+            st.f_bsize as u64
+        };
+        Ok(Space {
+            total: st.f_blocks as u64 * frsize,
+            free: st.f_bavail as u64 * frsize,
+        })
     }
 }
 
@@ -93,7 +110,11 @@ mod imp {
     use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
     pub fn space(p: &Path) -> std::io::Result<Space> {
-        let wide: Vec<u16> = p.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let wide: Vec<u16> = p
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
         let (mut avail, mut total, mut free) = (0u64, 0u64, 0u64);
         let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut avail, &mut total, &mut free) };
         if ok == 0 {

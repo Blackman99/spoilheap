@@ -5,7 +5,6 @@ use std::process::{Command, Stdio};
 
 #[derive(Debug, Clone, Default)]
 pub struct Worktree {
-    pub path: PathBuf,
     /// The repository's main working tree (where `git worktree remove` is run).
     pub main_repo: Option<PathBuf>,
     pub branch: Option<String>,
@@ -36,11 +35,15 @@ pub fn git(dir: &Path, args: &[&str]) -> Result<String, String> {
 
 /// `<dir>/.git` is a file (`gitdir: …`) for a linked worktree.
 pub fn is_linked_worktree(dir: &Path) -> bool {
-    std::fs::symlink_metadata(dir.join(".git")).map(|m| m.is_file()).unwrap_or(false)
+    std::fs::symlink_metadata(dir.join(".git"))
+        .map(|m| m.is_file())
+        .unwrap_or(false)
 }
 
 pub fn is_main_repo(dir: &Path) -> bool {
-    std::fs::symlink_metadata(dir.join(".git")).map(|m| m.is_dir()).unwrap_or(false)
+    std::fs::symlink_metadata(dir.join(".git"))
+        .map(|m| m.is_dir())
+        .unwrap_or(false)
 }
 
 fn gitdir_of(wt: &Path) -> Option<PathBuf> {
@@ -51,7 +54,7 @@ fn gitdir_of(wt: &Path) -> Option<PathBuf> {
 }
 
 pub fn analyze(wt: &Path) -> Worktree {
-    let mut w = Worktree { path: wt.to_path_buf(), ..Default::default() };
+    let mut w = Worktree::default();
     let Some(gd) = gitdir_of(wt) else {
         w.orphaned = true;
         return w;
@@ -81,15 +84,26 @@ pub fn analyze(wt: &Path) -> Worktree {
             w.main_repo = Some(common);
         }
     }
-    match git(wt, &["status", "--porcelain=v1", "--untracked-files=normal"]) {
+    match git(
+        wt,
+        &["status", "--porcelain=v1", "--untracked-files=normal"],
+    ) {
         Ok(s) => w.dirty = s.lines().filter(|l| !l.trim().is_empty()).count(),
         Err(e) => {
             w.error = Some(e);
             return w;
         }
     }
-    w.branch = git(wt, &["symbolic-ref", "-q", "--short", "HEAD"]).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
-    let mut args: Vec<String> = vec!["rev-list".into(), "--count".into(), "HEAD".into(), "--not".into()];
+    w.branch = git(wt, &["symbolic-ref", "-q", "--short", "HEAD"])
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let mut args: Vec<String> = vec![
+        "rev-list".into(),
+        "--count".into(),
+        "HEAD".into(),
+        "--not".into(),
+    ];
     if let Some(b) = &w.branch {
         args.push(format!("--exclude={b}")); // --branches patterns are relative to refs/heads
     }
@@ -128,7 +142,9 @@ pub fn is_ignored(wt: &Path, rel: &str) -> bool {
 
 /// Registrations whose folder is gone (`git worktree list --porcelain` marks them "prunable").
 pub fn prunable(repo: &Path) -> Vec<PathBuf> {
-    let Ok(s) = git(repo, &["worktree", "list", "--porcelain"]) else { return vec![] };
+    let Ok(s) = git(repo, &["worktree", "list", "--porcelain"]) else {
+        return vec![];
+    };
     let mut out = vec![];
     let mut cur: Option<PathBuf> = None;
     for l in s.lines() {
@@ -144,5 +160,10 @@ pub fn prunable(repo: &Path) -> Vec<PathBuf> {
 }
 
 pub fn available() -> bool {
-    Command::new("git").arg("--version").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok_and(|s| s.success())
+    Command::new("git")
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
 }

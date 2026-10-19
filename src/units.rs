@@ -44,7 +44,9 @@ impl Amount {
 pub fn parse_amount(s: &str) -> Result<Amount, String> {
     let t = s.trim().replace(' ', "").to_ascii_lowercase();
     if let Some(p) = t.strip_suffix('%') {
-        let v: f64 = p.parse().map_err(|_| format!("'{s}' is not a percentage like 5%"))?;
+        let v: f64 = p
+            .parse()
+            .map_err(|_| format!("'{s}' is not a percentage like 5%"))?;
         if !(0.0..=100.0).contains(&v) {
             return Err(format!("'{s}': a percentage must be between 0% and 100%"));
         }
@@ -65,7 +67,11 @@ pub fn parse_amount(s: &str) -> Result<Amount, String> {
         "mib" => 1024.0 * 1024.0,
         "gib" => 1024.0 * 1024.0 * 1024.0,
         "tib" => 1024.0f64.powi(4),
-        _ => return Err(format!("'{s}': unknown unit '{unit}' (use B, KB, MB, GB, TB or %)")),
+        _ => {
+            return Err(format!(
+                "'{s}': unknown unit '{unit}' (use B, KB, MB, GB, TB or %)"
+            ));
+        }
     };
     if v < 0.0 {
         return Err(format!("'{s}' is negative"));
@@ -87,7 +93,11 @@ pub fn parse_duration(s: &str) -> Result<Duration, String> {
         "h" => v * 3600.0,
         "d" => v * 86400.0,
         "w" => v * 7.0 * 86400.0,
-        _ => return Err(format!("'{s}': unknown unit '{unit}' (use s, m, h, d or w)")),
+        _ => {
+            return Err(format!(
+                "'{s}': unknown unit '{unit}' (use s, m, h, d or w)"
+            ));
+        }
     };
     if secs < 0.0 {
         return Err(format!("'{s}' is negative"));

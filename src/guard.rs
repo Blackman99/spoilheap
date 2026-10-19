@@ -45,7 +45,11 @@ pub fn checks(env: &Env, extra: &[PathBuf], floor: Amount) -> Vec<Check> {
         }
         seen.push(dev);
         if let Ok(s) = disk::space(&p) {
-            out.push(Check { path: disk::existing_ancestor(&p), floor: floor.resolve(s.total), space: s });
+            out.push(Check {
+                path: disk::existing_ancestor(&p),
+                floor: floor.resolve(s.total),
+                space: s,
+            });
         }
     }
     out
@@ -65,7 +69,12 @@ pub fn run(env: &Env, floor: Amount, paths: Vec<PathBuf>, quiet_ok: bool) -> i32
     if low.is_empty() {
         if !quiet_ok {
             for c in &cs {
-                println!("ok  {} has {} free (floor {})", env.tilde(&c.path), units::bytes(c.space.free), units::bytes(c.floor));
+                println!(
+                    "ok  {} has {} free (floor {})",
+                    env.tilde(&c.path),
+                    units::bytes(c.space.free),
+                    units::bytes(c.floor)
+                );
             }
         }
         return 0;
@@ -79,19 +88,39 @@ pub fn run(env: &Env, floor: Amount, paths: Vec<PathBuf>, quiet_ok: bool) -> i32
             floor.label()
         ));
     }
-    let opts = Opts { older: std::time::Duration::from_secs(30 * 86400), roots: vec![], roots_given: false, now: std::time::SystemTime::now(), repo_depth: 0 };
+    let opts = Opts {
+        older: std::time::Duration::from_secs(30 * 86400),
+        roots: vec![],
+        now: std::time::SystemTime::now(),
+        repo_depth: 0,
+    };
     let rep = dig::dig(env, &opts);
-    let mut safe: Vec<&dig::Item> = rep.items.iter().filter(|i| i.verdict == Verdict::Safe).collect();
-    safe.sort_by(|a, b| b.reclaim.cmp(&a.reclaim));
+    let mut safe: Vec<&dig::Item> = rep
+        .items
+        .iter()
+        .filter(|i| i.verdict == Verdict::Safe)
+        .collect();
+    safe.sort_by_key(|i| std::cmp::Reverse(i.reclaim));
     let total: u64 = safe.iter().map(|i| i.reclaim).sum();
     if total > 0 {
-        msg.push_str(&format!("Agent leftovers that are SAFE to delete ({} in total):\n", units::bytes(total)));
+        msg.push_str(&format!(
+            "Agent leftovers that are SAFE to delete ({} in total):\n",
+            units::bytes(total)
+        ));
         for i in safe.iter().take(3) {
-            msg.push_str(&format!("  [{}] {} · {} · {}\n", i.id, i.label, units::bytes(i.reclaim), env.tilde(&i.path)));
+            msg.push_str(&format!(
+                "  [{}] {} · {} · {}\n",
+                i.id,
+                i.label,
+                units::bytes(i.reclaim),
+                env.tilde(&i.path)
+            ));
         }
         msg.push_str("Ask the user to run: spoilheap clean --safe --yes\n");
     } else {
-        msg.push_str("No agent leftovers are SAFE to delete; run `spoilheap` to see what is REVIEW.\n");
+        msg.push_str(
+            "No agent leftovers are SAFE to delete; run `spoilheap` to see what is REVIEW.\n",
+        );
     }
     crate::out::save_ids(env, &rep);
     eprint!("{msg}");
@@ -130,6 +159,8 @@ command = "{cmd}"
 statusMessage = "checking free disk space"
 "#
         )),
-        other => Err(format!("unknown hook target '{other}'; use `spoilheap hook claude` or `spoilheap hook codex`")),
+        other => Err(format!(
+            "unknown hook target '{other}'; use `spoilheap hook claude` or `spoilheap hook codex`"
+        )),
     }
 }

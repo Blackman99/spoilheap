@@ -56,6 +56,7 @@ pub fn allocated(md: &fs::Metadata) -> u64 {
 
 #[derive(Default)]
 pub struct Walker {
+    #[cfg_attr(not(unix), allow(dead_code))]
     seen: HashSet<(u64, u64)>,
     /// Directories (by absolute path) to skip; their bytes belong to another item.
     pub skip: HashSet<PathBuf>,
@@ -96,8 +97,16 @@ impl Walker {
         m
     }
 
-    fn visit(&mut self, p: &Path, dev: Option<u64>, m: &mut Measure, f: &mut dyn FnMut(&Path, &fs::Metadata)) {
-        let Ok(md) = fs::symlink_metadata(p) else { return };
+    fn visit(
+        &mut self,
+        p: &Path,
+        dev: Option<u64>,
+        m: &mut Measure,
+        f: &mut dyn FnMut(&Path, &fs::Metadata),
+    ) {
+        let Ok(md) = fs::symlink_metadata(p) else {
+            return;
+        };
         let ft = md.file_type();
         if ft.is_symlink() || self.skip.contains(p) {
             return;
@@ -120,11 +129,9 @@ impl Walker {
             for e in rd.flatten() {
                 self.visit(&e.path(), this_dev.or(dev), m, f);
             }
-        } else if ft.is_file() {
-            if self.first_sight(&md) {
-                m.add_file(allocated(&md), md.modified().ok());
-                f(p, &md);
-            }
+        } else if ft.is_file() && self.first_sight(&md) {
+            m.add_file(allocated(&md), md.modified().ok());
+            f(p, &md);
         }
     }
 }
@@ -165,7 +172,11 @@ mod tests {
         }
         let m = measure(&d);
         assert_eq!(m.files, 2, "hard link counted once, symlink not followed");
-        assert!(m.bytes >= 120_000, "allocated at least the data: {}", m.bytes);
+        assert!(
+            m.bytes >= 120_000,
+            "allocated at least the data: {}",
+            m.bytes
+        );
         assert!(m.newest.is_some());
         fs::remove_dir_all(&d).unwrap();
     }
