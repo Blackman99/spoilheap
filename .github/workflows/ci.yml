@@ -1,0 +1,62 @@
+name: CI
+on:
+  push: {branches: [main]}
+  pull_request:
+permissions: {contents: read}
+env: {CARGO_TERM_COLOR: always}
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix: {os: [ubuntu-latest, macos-latest, windows-latest]}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with: {components: 'clippy, rustfmt'}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - name: cargo test (real git worktrees, real SQLite file)
+        run: cargo test
+  demo-home:
+    name: demo home end to end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq sqlite3
+      - run: cargo build --release
+      - name: build a fake home with real Codex worktrees, a bloated OpenCode DB and crash dumps
+        run: scripts/demohome.sh "$RUNNER_TEMP/home"
+      - name: dig, clean, guard
+        env: {SPOILHEAP_OS: macos, COLUMNS: '110', NO_COLOR: '1'}
+        run: |
+          set -euo pipefail
+          H="$RUNNER_TEMP/home"; S=target/release/spoilheap
+          $S --home "$H" --root "$H/code"
+          $S --home "$H" --root "$H/code" --json > dig.json
+          python3 - <<'PY'
+          import json
+          r = json.load(open("dig.json"))
+          v = {(i["kind"], i["path"].split("/worktrees/")[-1]): i for i in r["items"]}
+          def get(kind, end):
+              for (k, p), i in v.items():
+                  if k == kind and p.endswith(end): return i
+              raise SystemExit(f"missing {kind} {end}")
+          assert get("worktree", "a41f/payments")["verdict"] == "SAFE"
+          assert get("worktree", "b77c/payments")["verdict"] == "REVIEW"
+          assert get("worktree", "c903/payments")["verdict"] == "KEEP"
+          db = get("database", "opencode.db")
+          assert db["verdict"] == "REVIEW" and "VACUUM" in db["action"]["command"], db
+          assert any(i["kind"] == "crash-dumps" and i["verdict"] == "SAFE" for i in r["items"])
+          print("verdicts ok:", r["totals"])
+          PY
+          $S clean --safe --home "$H" --root "$H/code"
+          $S clean --safe --yes --home "$H" --root "$H/code"
+          test -f "$H/.codex/worktrees/c903/payments/ledger.rs"
+          test ! -e "$H/.codex/worktrees/a41f"
+          set +e; SPOILHEAP_FAKE_FREE=2GB/500GB $S guard --floor 10GB --home "$H" </dev/null; c=$?; set -e
+          test "$c" = 2

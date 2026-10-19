@@ -1,0 +1,30 @@
+name: Pages
+on:
+  push: {branches: [main], paths: ['site/**', '.github/workflows/pages.yml']}
+  workflow_dispatch:
+permissions: {contents: read, pages: write, id-token: write}
+concurrency: {group: pages, cancel-in-progress: true}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: {name: github-pages, url: '${{ steps.d.outputs.page_url }}'}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with: {path: site}
+      - id: d
+        uses: actions/deploy-pages@v4
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: landing, docs, share image and install script answer 200
+        run: |
+          for u in "" docs/ og.png favicon.svg install.sh; do
+            for i in 1 2 3 4 5 6; do
+              c=$(curl -s -o /dev/null -w '%{http_code}' "https://blackman99.github.io/spoilheap/$u")
+              [ "$c" = 200 ] && break; sleep 10
+            done
+            echo "$u -> $c"; [ "$c" = 200 ]
+          done
