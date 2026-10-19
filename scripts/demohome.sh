@@ -2,7 +2,9 @@
 # Build a fake home that looks like a heavy agent user's machine, with REAL git
 # worktrees, a REAL SQLite database full of free pages, and real files.
 # usage: scripts/demohome.sh DIR [big]
-#   big: allocate realistic sizes with fallocate (Linux; needs ~40 GB free)
+#   big: realistic sizes as SPARSE files (they take no disk space); run spoilheap
+#        with SPOILHEAP_APPARENT_SIZE=1 so it counts their apparent size.
+#        (An earlier version used fallocate. It filled our own build box to 100%.)
 set -euo pipefail
 H=${1:?usage: demohome.sh DIR [big]}
 BIG=${2:-}
@@ -15,8 +17,8 @@ git_q() { git -c init.defaultBranch=main -c advice.detachedHead=false "$@" >/dev
 blob() {
   local p=$1 sz=$2 age=${3:-}
   mkdir -p "$(dirname "$p")"
-  if [ -n "$BIG" ] && command -v fallocate >/dev/null; then
-    fallocate -l "$sz" "$p"
+  if [ -n "$BIG" ]; then
+    truncate -s "$sz" "$p"
   else
     # small mode: 1/1000 of the size so the demo runs anywhere
     local n; n=$(numfmt --from=iec "$sz" 2>/dev/null || echo 4096)

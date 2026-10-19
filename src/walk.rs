@@ -43,6 +43,11 @@ impl Measure {
 
 /// Bytes the file occupies on disk.
 pub fn allocated(md: &fs::Metadata) -> u64 {
+    // demo/test knob: count apparent size (scripts/demohome.sh big uses sparse files)
+    static APPARENT: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *APPARENT.get_or_init(|| std::env::var_os("SPOILHEAP_APPARENT_SIZE").is_some()) {
+        return md.len();
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
