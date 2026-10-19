@@ -324,7 +324,8 @@ fn clean_is_a_dry_run_and_never_touches_keep() {
         .output()
         .unwrap();
     assert!(
-        !String::from_utf8_lossy(&wl.stdout).contains("a1"),
+        // match the worktree's own path segment: a random temp dir can contain "a1"
+        !String::from_utf8_lossy(&wl.stdout).contains("/worktrees/a1/"),
         "git still lists the removed worktree"
     );
 }
