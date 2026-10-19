@@ -51,7 +51,7 @@ code{font-family:var(--mono);font-size:.92em}
 .shovel[disabled]{cursor:progress;opacity:.75}
 .b-docs{font:500 1.05rem var(--cond);letter-spacing:.1em;text-transform:uppercase}
 .b-install{display:flex;align-items:stretch;margin-top:18px;border:1px solid rgba(201,205,209,.35)}
-.b-install code{flex:1;min-width:0;padding:9px 12px;font-size:.88rem;overflow-x:auto;white-space:nowrap;color:var(--alu)}
+.b-install code{flex:1;min-width:0;padding:9px 12px;font-size:.88rem;line-height:1.45;white-space:normal;overflow-wrap:anywhere;color:var(--alu)}
 .copy{font:600 .85rem var(--cond);letter-spacing:.12em;text-transform:uppercase;background:var(--alu);color:var(--felt);border:0;padding:0 14px;cursor:pointer}
 .copy.done{background:var(--safe)}
 
@@ -129,7 +129,6 @@ main::before{content:"";position:absolute;z-index:2;left:26px;top:0;bottom:0;wid
 @media (max-width:899px){
   .board{transform:rotate(-1deg)}
   .caption{left:24px;right:12px;top:auto;bottom:12px;width:auto;background:rgba(21,20,19,.88);padding:8px 10px;color:var(--letter)}
-  .b-install{display:none}
   .board{padding:16px 18px 18px}
   .b-pitch{font-size:1rem;margin:10px 0 14px}
   main::before{left:8px;width:10px}
@@ -150,3 +149,14 @@ main::before{content:"";position:absolute;z-index:2;left:26px;top:0;bottom:0;wid
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
 }
+
+/* self-critique pass 2026-10-19 */
+.layer code,.rules code,.lead code{white-space:nowrap}
+.layer code[data-long],.layer .small code{white-space:normal;overflow-wrap:anywhere}
+.f-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:var(--cond);text-transform:uppercase;letter-spacing:.08em}
+.f-links img{margin-right:4px}
+.copy.done{background:var(--safe);color:var(--felt)}
+@media (max-width:899px){.term{width:auto;min-width:0;max-width:100%}}
+/* pebbles and stipple sit behind the text column, never inside a word */
+.layer .in > p,.layer .in li,.layer .in dd,.layer .in dt,.layer .in h2{text-shadow:0 0 2px var(--bg),0 0 5px var(--bg),0 0 9px var(--bg)}
+.nw{white-space:nowrap}

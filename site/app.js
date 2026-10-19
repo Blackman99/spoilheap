@@ -104,7 +104,7 @@ function build() {
   if (narrow) {
     board.style.left = '16px'; board.style.width = ''; board.style.top = gauge.offsetTop + gauge.offsetHeight + 18 + 'px';
     groundY = board.offsetTop + board.offsetHeight + 130;
-    dig.style.minHeight = groundY + Math.max(560, Math.round(window.innerHeight * 0.75)) + 'px';
+    dig.style.minHeight = groundY + Math.min(720, Math.max(560, Math.round(window.innerHeight * 0.75))) + 'px';
   } else {
     dig.style.minHeight = '';
     groundY = Math.round(Math.max(196, dig.clientHeight * 0.22));
@@ -393,8 +393,9 @@ function soilSections() {
 // ---------- copy buttons ----------
 document.querySelectorAll('.copy').forEach((b) => b.addEventListener('click', async () => {
   const text = document.getElementById(b.dataset.copy).textContent;
-  try { await navigator.clipboard.writeText(text); b.textContent = 'copied'; b.classList.add('done'); } catch { b.textContent = 'select it'; }
-  setTimeout(() => { b.textContent = 'copy'; b.classList.remove('done'); }, 1600);
+  try { await navigator.clipboard.writeText(text); b.textContent = 'copied'; b.classList.add('done'); } catch { // no clipboard (http, old browser): select the command so Ctrl/Cmd-C works
+    const sel = getSelection(), rg = document.createRange(); rg.selectNodeContents(document.getElementById(b.dataset.copy)); sel.removeAllRanges(); sel.addRange(rg); b.textContent = 'press ⌘/Ctrl-C'; }
+  setTimeout(() => { b.textContent = 'copy'; b.classList.remove('done'); }, 2200);
 }));
 
 // ---------- boot ----------

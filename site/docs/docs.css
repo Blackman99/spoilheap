@@ -34,9 +34,12 @@ td{border-bottom:1px solid rgba(201,205,209,.15);padding:9px 12px 9px 0;vertical
 ul{padding-left:1.1em}li{margin:.35em 0}
 .foot{padding:28px clamp(16px,4vw,56px);border-top:3px solid var(--humus);color:var(--alu);font-size:.92rem}
 @media (max-width:860px){
-  .wrap{grid-template-columns:1fr;padding-left:40px}
+  .wrap{grid-template-columns:minmax(0,1fr);padding-left:40px;padding-right:16px}
   .wrap::before{left:12px}
   .toc{position:static;padding-left:0}
-  .toc ol{columns:2}
+  .toc ol{columns:2;column-gap:16px}
+  .toc a{font-size:.98rem}
   table{display:block;overflow-x:auto}
 }
+code{overflow-wrap:anywhere}
+pre code{overflow-wrap:normal}

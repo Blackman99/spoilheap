@@ -53,7 +53,7 @@
       <button type="button" class="shovel" id="shovel">Shovel out SAFE · <span id="safeamt">56.5 GB</span></button>
       <a class="b-docs" href="docs/">Read the docs</a>
     </div>
-    <div class="b-install"><code id="cmd">curl -fsSL https://blackman99.github.io/spoilheap/install.sh | sh</code><button type="button" class="copy" data-copy="cmd" aria-label="Copy the install command">copy</button></div>
+    <div class="b-install"><code id="cmd">curl -fsSL https://<wbr>blackman99.github.io/<wbr>spoilheap/<wbr><span class="nw">install.sh | sh</span></code><button type="button" class="copy" data-copy="cmd" aria-label="Copy the install command">copy</button></div>
   </div>
   <ol class="tags" id="tags" aria-label="Layers in this section, newest at the top"></ol>
   <div class="sheet" id="sheet" role="dialog" aria-modal="false" aria-labelledby="sheet-h" hidden>
@@ -90,7 +90,7 @@
       <li><i class="pin pin-review" aria-hidden="true"></i><div><h3>REVIEW</h3><p>Yours to judge: chats older than <code>--older 30d</code>, a worktree with commits that exist nowhere else (it says how many), a worktree touched in the last hour, a worktree git no longer knows about, a SQLite file with hundreds of MB of free pages.</p></div></li>
       <li><i class="pin pin-keep" aria-hidden="true"></i><div><h3>KEEP</h3><p>Never touched, even if you name it: uncommitted changes, a worktree a running process is sitting in, recent history, a database that is not worth a VACUUM.</p></div></li>
     </ul>
-    <p>The worktree verdict comes from git itself: <code>status --porcelain</code>, then <code>rev-list HEAD --not --branches --tags --remotes</code>, with optional locks off so it never fights a running agent for <code>index.lock</code>.</p>
+    <p>The worktree verdict comes from git itself: <code>status --porcelain</code>, then <code data-long>rev-list HEAD --not --branches --tags --remotes</code>, with optional locks off so it never fights a running agent for <code>index.lock</code>.</p>
   </div>
 </section>
 
@@ -101,16 +101,20 @@
     <p class="lead"><code>clean</code> prints the plan and stops. Add <code>--yes</code> to do it.</p>
 <pre class="term" tabindex="0" aria-label="spoilheap clean --safe output"><b>$ spoilheap clean --safe</b>
 plan (dry run)
-  [102] <span class="v v-safe">SAFE</span>   Codex crash dumps                 28.5 GB  delete 100 entries under ~/Library/Application Support/Codex/Crashpad
-  [107] <span class="v v-safe">SAFE</span>   build output target/               5.0 GB  delete ~/.codex/worktrees/c903/payments/target
-  [109] <span class="v v-safe">SAFE</span>   worktree payments (detached)         4 KB  git -C ~/code/payments worktree remove ~/.codex/worktrees/a41f/payments
-  [127] <span class="v v-safe">SAFE</span>   payments: 6 half-written git packs 12.0 GB  delete 6 entries under ~/code/payments/.git/objects/pack
-  [128] <span class="v v-safe">SAFE</span>   payments: 1 stale worktree registration —  git -C ~/code/payments worktree prune
-  <span class="dim">… 7 more</span>
+  [102] <span class="v v-safe">SAFE</span>   Codex crash dumps                              28.5 GB
+        <span class="dim">→ delete 100 entries under ~/Library/Application Support/Codex/Crashpad</span>
+        <span class="v v-review">note</span> Codex is crash-looping right now; quit it first or the dumps come straight back
+  [107] <span class="v v-safe">SAFE</span>   build output target/                            5.0 GB
+        <span class="dim">→ delete ~/.codex/worktrees/c903/payments/target</span>
+  [109] <span class="v v-safe">SAFE</span>   worktree payments (detached)                      4 KB
+        <span class="dim">→ git -C ~/code/payments worktree remove ~/.codex/worktrees/a41f/payments</span>
+  [127] <span class="v v-safe">SAFE</span>   payments: 6 half-written git packs             12.0 GB
+        <span class="dim">→ delete 6 entries under ~/code/payments/.git/objects/pack</span>
+  <span class="dim">… 8 more</span>
 
-dry run: would free 56.5 GB. Nothing was deleted. Run the same command with --yes to do it.</pre>
+<b>dry run:</b> would free 56.5 GB. Nothing was deleted. Run the same command with --yes to do it.</pre>
     <ul class="rules">
-      <li>Worktrees go through <code>git worktree remove</code> without <code>--force</code>, after a fresh re-check. If git refuses, spoilheap stops and shows you why.</li>
+      <li>Worktrees go through <code>git worktree remove</code> without <code>--force</code>, after a fresh re-check. If git refuses, that item fails with git's reason, the rest go on, and the exit code is 1.</li>
       <li>Databases are never edited. <code>spoilheap clean 122</code> prints the <code>VACUUM</code> command and how much free space it needs while it runs.</li>
       <li>A KEEP item named on the command line is skipped, with its reason.</li>
       <li>It deletes only inside the folder the item came from, then measures free space again and tells you if the disk got back less than planned (open files, snapshots).</li>
@@ -152,15 +156,15 @@ watching 6 locations every 10 s · alarm at 500.0 MB/min or under 10.0 GB free �
   }
 }</pre>
     <p>What the agent sees when it trips (exit code 2, message on stderr):</p>
-<pre class="term" tabindex="0" aria-label="guard message"><span class="v v-run">spoilheap guard</span>: only 3.1 GB free on ~/code/payments (floor 10.0 GB). Stop and tell the user before
-writing anything else: a full disk corrupts agent databases (anomalyco/opencode#56829) and can
+<pre class="term" tabindex="0" aria-label="guard message"><span class="v v-run">spoilheap guard</span>: only 3.1 GB free on the disk holding ~/code/payments (floor 10.0 GB). Stop and
+tell the user before writing anything else: a full disk corrupts agent databases (anomalyco/opencode#56829) and can
 stop even cleanup commands from starting (openai/codex#55038).
 Agent leftovers that are SAFE to delete (56.5 GB in total):
   [102] Codex crash dumps · 28.5 GB · ~/Library/Application Support/Codex/Crashpad
   [127] payments: 6 half-written git packs · 12.0 GB · ~/code/payments/.git/objects/pack
   [110] build output target/ · 6.5 GB · ~/.codex/worktrees/a41f/payments/target
 Ask the user to run: spoilheap clean --safe --yes</pre>
-    <p><code>spoilheap hook codex</code> prints the same thing for <code>~/.codex/config.toml</code>; the exit-code-2 contract was checked against <code>codex-rs/hooks/src/events/pre_tool_use.rs</code>.</p>
+    <p><code>spoilheap hook codex</code> prints the same thing for <code>~/.codex/config.toml</code>; the exit-code-2 contract was checked against <code data-long>codex-rs/hooks/src/events/pre_tool_use.rs</code>.</p>
   </div>
 </section>
 
@@ -180,14 +184,15 @@ Ask the user to run: spoilheap clean --safe --yes</pre>
     <h2 id="h-install">Install</h2>
 <pre class="term" tabindex="0" aria-label="install commands"><b>$ curl -fsSL https://blackman99.github.io/spoilheap/install.sh | sh</b>   <span class="dim"># Linux, macOS; checks SHA-256</span>
 <b>$ cargo install --git https://github.com/Blackman99/spoilheap</b>
-<span class="dim"># Windows: spoilheap-v0.1.0-x86_64-pc-windows-msvc.zip from the release page</span>
+<span class="dim"># Windows: spoilheap-v0.1.0-x86_64-pc-windows-msvc.zip (or aarch64-…) from the release page</span>
 <b>$ spoilheap</b>   <span class="dim"># look first. It deletes nothing.</span></pre>
-    <p>One static binary, no runtime. Linux x86_64 and aarch64 (musl), macOS arm64 and x86_64, Windows x86_64. <a href="https://github.com/Blackman99/spoilheap/releases">Releases</a> · <a href="docs/">Docs</a> · <a href="https://github.com/Blackman99/spoilheap/blob/main/ROADMAP.md">Roadmap</a> · MIT.</p>
+    <p>One static binary, no runtime. Linux x86_64 and aarch64 (musl), macOS arm64 and x86_64, Windows x86_64 and arm64. Every archive is listed in <code>checksums.txt</code>. <a href="https://github.com/Blackman99/spoilheap/releases">Releases</a> · <a href="docs/">Docs</a> · <a href="https://github.com/Blackman99/spoilheap/blob/main/ROADMAP.md">Roadmap</a> · MIT.</p>
   </div>
 </section>
 </main>
 
 <footer class="foot">
+  <p class="f-links"><img src="favicon.svg" alt="" width="22" height="22"><a href="https://github.com/Blackman99/spoilheap">GitHub</a> · <a href="docs/">Docs</a> · <a href="https://github.com/Blackman99/spoilheap/releases">Releases</a> · <a href="https://github.com/Blackman99/spoilheap/issues">Report a path we missed</a></p>
   <p>spoilheap: in archaeology, the pile of earth dug out of a trench. Made by <a href="https://github.com/Blackman99">Blackman99</a>. Not affiliated with OpenAI, Anthropic, Google, Cline or the OpenCode project.</p>
 </footer>
 <script src="app.js" defer></script>

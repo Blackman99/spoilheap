@@ -187,6 +187,14 @@ pub fn run(env: &Env, rep: &Report, ch: &Choice, st: &Style) -> i32 {
             let lines = crate::render::wrap(&what, st.width.saturating_sub(10).max(30), 10);
             println!("        {}", st.dim(&format!("→ {}", lines.join("\n"))));
         }
+        if it.kind == "crash-dumps" && it.reason.starts_with("crash loop") {
+            // deleting dumps of an app that is still crashing frees space for minutes, not hours
+            let app = it.label.trim_end_matches(" crash dumps");
+            println!(
+                "        {} {app} is crash-looping right now; quit it first or the dumps come straight back",
+                st.yellow("note")
+            );
+        }
         planned += it.reclaim;
         if !ch.yes {
             continue;
