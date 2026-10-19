@@ -512,7 +512,9 @@ impl Ctx<'_> {
         } else {
             String::new()
         };
-        let worth = free >= 500_000_000 || (size > 0 && free * 5 >= size && free >= 50_000_000);
+        // SPOILHEAP_VACUUM_MIN lowers the "worth a VACUUM" bar (default 50 MB and 20%, or 500 MB)
+        let min = std::env::var("SPOILHEAP_VACUUM_MIN").ok().and_then(|v| units::parse_amount(&v).ok()).map(|a| a.resolve(size)).unwrap_or(50_000_000);
+        let worth = free >= 500_000_000 || (size > 0 && free * 5 >= size && free >= min);
         if worth {
             let label = format!("{name}: {} of {} is free pages", units::bytes(free), units::bytes(size));
             let mut it = Item::new(harness, "database", label, db, &m).verdict(
@@ -691,7 +693,7 @@ impl Ctx<'_> {
         };
         let idx = self.push(it);
         if let Some(r) = &info.main_repo {
-            let r = &std::fs::canonicalize(r).unwrap_or_else(|_| r.clone());
+            let r = &crate::walk::canon(r).unwrap_or_else(|_| r.clone());
             if !self.repos.contains(r) {
                 self.repos.push(r.clone());
             }
@@ -862,7 +864,7 @@ pub fn dig(env: &Env, opts: &Opts) -> Report {
     cx.cline();
     let mut repos: Vec<PathBuf> = vec![];
     for r in find_repos(&opts.roots, opts.repo_depth) {
-        let r = std::fs::canonicalize(&r).unwrap_or(r);
+        let r = crate::walk::canon(&r).unwrap_or(r);
         if !repos.contains(&r) {
             repos.push(r);
         }

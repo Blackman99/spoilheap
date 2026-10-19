@@ -129,6 +129,21 @@ impl Walker {
     }
 }
 
+/// canonicalize without Windows' \\?\ prefix (git and most tools reject it).
+pub fn canon<P: AsRef<Path>>(p: P) -> std::io::Result<PathBuf> {
+    let c = fs::canonicalize(p)?;
+    #[cfg(windows)]
+    {
+        let s = c.to_string_lossy();
+        if let Some(r) = s.strip_prefix(r"\\?\") {
+            if !r.starts_with("UNC") {
+                return Ok(PathBuf::from(r));
+            }
+        }
+    }
+    Ok(c)
+}
+
 pub fn measure(root: &Path) -> Measure {
     Walker::new().measure(root)
 }

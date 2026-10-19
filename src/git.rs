@@ -64,8 +64,8 @@ pub fn analyze(wt: &Path) -> Worktree {
     // still has a .git link, but git no longer treats it as a working tree.
     if let Ok(back) = std::fs::read_to_string(gd.join("gitdir")) {
         let back = PathBuf::from(back.trim());
-        let here = std::fs::canonicalize(wt.join(".git")).unwrap_or_else(|_| wt.join(".git"));
-        let there = std::fs::canonicalize(&back).unwrap_or(back);
+        let here = crate::walk::canon(wt.join(".git")).unwrap_or_else(|_| wt.join(".git"));
+        let there = crate::walk::canon(&back).unwrap_or(back);
         if here != there {
             w.orphaned = true;
             return w;
@@ -74,7 +74,7 @@ pub fn analyze(wt: &Path) -> Worktree {
     // <common>/worktrees/<name>/commondir → "../.." ; main repo = parent of <common> when it is ".git"
     if let Ok(cd) = std::fs::read_to_string(gd.join("commondir")) {
         let common = gd.join(cd.trim());
-        let common = std::fs::canonicalize(&common).unwrap_or(common);
+        let common = crate::walk::canon(&common).unwrap_or(common);
         if common.file_name().is_some_and(|n| n == ".git") {
             w.main_repo = common.parent().map(Path::to_path_buf);
         } else {
