@@ -114,15 +114,16 @@ function build() {
   }
   H = dig.clientHeight; wallBot = H;
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  const removed = state === 'done' ? layers.filter((l) => l.v === 'SAFE').reduce((a, l) => a + l.bytes, 0) : 0;
+  const done = state === 'done';
   total = Object.values(items).reduce((a, i) => a + i.b, 0) + freeBase;
   ppb = (wallBot - groundY) / total;
   layers = STRATA.map((d, i) => {
     const its = d.ids.map((id) => items[id]).filter(Boolean);
     const bytes = its.reduce((a, it) => a + it.b, 0);
     const t0 = bytes * ppb, pad = 12;
-    return { ...d, its, bytes, t0, t: d.v === 'SAFE' && removed ? 0 : t0, pad, tex: texture(d.soil, W, t0 + pad * 2, 101 + i * 7), wave: noise1(900 + i * 31), amp: Math.min(13, 3 + t0 / 7) };
+    return { ...d, its, bytes, t0, t: d.v === 'SAFE' && done ? 0 : t0, pad, tex: texture(d.soil, W, t0 + pad * 2, 101 + i * 7), wave: noise1(900 + i * 31), amp: Math.min(13, 3 + t0 / 7) };
   });
+  const removed = done ? layers.filter((l) => l.v === 'SAFE').reduce((a, l) => a + l.bytes, 0) : 0;
   freeNow = freeBase + removed;
   natural = { soil: 'natural', name: 'natural · free space', tex: texture('natural', W, (wallBot - groundY) + 24, 77), wave: noise1(4242), amp: 4, pad: 12 };
   const tr = rng(5);
@@ -144,9 +145,20 @@ function buildHeap(removed) {
   const pre = Math.round(heap.budget * 0.06);
   for (let i = 0; i < pre; i++) drop(Math.round(cols * 0.62 + (r() - 0.5) * 6), old[(r() * old.length) | 0], true);
   if (removed) { // reload in the done state: rebuild the full heap at once
-    const safe = layers.filter((l) => l.v === 'SAFE');
-    safe.forEach((l) => { const n = Math.round(heap.budget * (l.bytes / removed)); for (let i = 0; i < n; i++) drop(aim(r), SOIL[l.soil].dots[i % 3], true); });
+    pileAtOnce(layers.filter((l) => l.v === 'SAFE'), removed, r);
   }
+}
+// the heap the animated dig leaves behind, built in one go: shovelfuls land on the same
+// schedule as in shovel() (each stratum starts before the last one is done), grains coloured alike
+function pileAtOnce(safe, sum, r) {
+  const g = []; let at = 0;
+  for (const l of safe) {
+    const s = SOIL[l.soil], share = l.bytes / sum, D = 650 + 1700 * share, n = Math.round(heap.budget * share);
+    for (let i = 0; i < n; i++) g.push({ t: at + (i / n) * D + 700 * r(), c: r() < 0.25 ? s.base : s.dots[(r() * 3) | 0] });
+    at += D * 0.6;
+  }
+  g.sort((a, b) => a.t - b.t);
+  for (const p of g) drop(aim(r), p.c, true);
 }
 let dumpAt = 0.55;
 function aim(r) { dumpAt += (r() - 0.5) * 0.02; dumpAt = Math.max(0.42, Math.min(0.66, dumpAt)); const u = (r() + r() + r() - 1.5) / 1.5; return Math.round(heap.cols * dumpAt + u * heap.cols * 0.1); }
@@ -282,7 +294,7 @@ function setFree(b) {
   floorMsg.textContent = ok ? 'above the 10 GB guard floor: agents can keep working' : "under the 10 GB guard floor: the agent's next tool call is blocked";
 }
 function intro() {
-  if (reduce) { scrape = 1; [...layers, natural].forEach((l) => { l.el.style.opacity = ''; l.el.classList.remove('pre'); l.el.classList.add('in'); }); draw(); return; }
+  if (reduce) { scrape = 1; if (state === 'intro') state = 'idle'; [...layers, natural].forEach((l) => { l.el.style.opacity = ''; l.el.classList.remove('pre'); l.el.classList.add('in'); }); placeTags(); draw(); return; }
   const start = performance.now(), D = 1500;
   const step = (now) => {
     scrape = Math.min(1, ease((now - start) / D));
@@ -306,7 +318,8 @@ function shovel() {
   layers.filter((l) => l.v !== 'SAFE').forEach((l) => { l.el.classList.remove('wiggle'); void l.el.offsetWidth; l.el.classList.add('wiggle'); });
   if (reduce) {
     const r = rng(3);
-    safe.forEach((l) => { l.t = 0; l.el.classList.add('gone'); const n = Math.round(heap.budget * l.bytes / sum); for (let i = 0; i < n; i++) drop(aim(r), SOIL[l.soil].dots[i % 3], true); });
+    safe.forEach((l) => { l.t = 0; l.el.classList.add('gone'); });
+    pileAtOnce(safe, sum, r);
     setFree(freeBase + sum); finish(); return;
   }
   state = 'digging'; btn.disabled = true; btn.textContent = 'Shovelling…';
@@ -404,7 +417,10 @@ fetch('demo.json').then((r) => r.json()).then(async (d) => {
   for (const it of d.macos.items) items[it.id] = it;
   freeBase = d.macos.free || freeBase;
   try { await document.fonts.ready; } catch {}
-  build(); setFree(freeBase); intro(); soilSections();
+  // reduced motion: no scrape, no flying grains, no autoplay. Open on the finished dig
+  // (SAFE strata gone, heap on the bank, free space back above the floor); the button backfills.
+  if (reduce) state = 'done';
+  build(); setFree(freeNow); intro(); if (reduce) finish(); soilSections();
   let rt = 0; let lastW = W;
   addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (state === 'digging') return; if (Math.abs(dig.clientWidth - lastW) < 2 && !narrow) { build(); return; } lastW = dig.clientWidth; build(); }, 160); });
 }).catch(() => { dig.classList.add('nojs'); });
