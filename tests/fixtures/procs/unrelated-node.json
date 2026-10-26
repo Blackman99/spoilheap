@@ -1,0 +1,11 @@
+{
+  "worktrees": ["/home/dev/code/site"],
+  "procs": [
+    {"pid": 1, "ppid": 0, "name": "systemd", "argv": ["/sbin/init"]},
+    {"pid": 900, "ppid": 1, "name": "zsh", "argv": ["-zsh"], "cwd": "/home/dev"},
+    {"pid": 3100, "ppid": 1, "name": "node", "argv": ["node", "/home/dev/code/site/node_modules/.bin/next", "dev"], "cwd": "/home/dev/code/site", "rss": 300000000, "cpu": 2.0, "age_s": 9000},
+    {"pid": 3200, "ppid": 900, "name": "node", "argv": ["node", "/usr/lib/node_modules/some-mcp-proxy/index.js"], "cwd": "/home/dev", "rss": 30000000, "cpu": 0.0, "age_s": 100},
+    {"pid": 3300, "ppid": 1, "name": "node", "argv": ["node", "/opt/claude-like/server.js"], "cwd": "/opt", "rss": 30000000, "cpu": 0.0, "age_s": 100},
+    {"pid": 3400, "ppid": 900, "name": "claude-monitor", "argv": ["claude-monitor"], "cwd": "/home/dev", "rss": 20000000}
+  ]
+}

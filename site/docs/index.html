@@ -39,6 +39,7 @@
     <li><a href="#verdicts">How verdicts are made</a></li>
     <li><a href="#clean">clean</a></li>
     <li><a href="#watch">watch</a></li>
+    <li><a href="#procs">procs</a></li>
     <li><a href="#guard">guard and hooks</a></li>
     <li><a href="#mcp">MCP server</a></li>
     <li><a href="#paths">Paths it reads</a></li>
@@ -109,7 +110,27 @@ spoilheap clean --safe 113 --yes      # every SAFE item plus REVIEW item 113</co
 <p>Measures the agent folders and every repo's <code>.git/objects/pack</code> on each tick. A location that grows faster than <code>--rate</code> per minute is printed as <code>RUNAWAY</code> with its newest file and the process chain that has files open there (from <code>/proc/*/fd</code> on Linux, <code>lsof</code> on macOS), once per change. Free space under <code>--floor</code> is reported at most once a minute. A quiet line with the free space is printed every minute when nothing moves.</p>
 </section>
 
-<section id="guard"><h2><span>06</span>guard and hooks</h2>
+<section id="procs"><h2><span>06</span>procs: agent processes</h2>
+<pre><code>spoilheap procs [--all] [--json]</code></pre>
+<p>Agents leave processes behind as well as files. Codex restarts have doubled its helper and MCP servers (<a href="https://github.com/openai/codex/issues/55141">openai/codex#55141</a>), and Claude Code can leave the shell it runs commands in orphaned at PPID 1, burning a core (<a href="https://github.com/anthropics/claude-code/issues/103313">anthropics/claude-code#103313</a>). <code>procs</code> lists them, grouped by the agent that runs them, with memory (RSS) and CPU. It only reads: it never sends a signal.</p>
+<p>What counts as an agent process is kept narrow on purpose; a <code>node</code> process on its own is never listed.</p>
+<ul>
+<li><b>Agents</b>, by executable or package: <code>claude</code> / <code>@anthropic-ai/claude-code</code>, <code>codex</code> / <code>@openai/codex</code> / <code>Codex.app</code>, <code>opencode</code> / <code>opencode-ai</code>, <code>gemini</code> / <code>@google/gemini-cli</code>, <code>cline</code>.</li>
+<li><b>Helpers</b>: everything running below a live agent, down to the next agent. MCP servers are named from their package or script.</li>
+<li><b>Orphans</b>, with no agent above them any more: Claude Code snapshot shells (<code>shell-snapshots/snapshot-…</code> in the command line), <code>codex app-server</code> / <code>mcp-server</code>, Codex.app and Cline helpers, and processes whose environment carries an agent's marker variable (<code>CLAUDECODE</code>, <code>CODEX_THREAD_ID</code>, <code>OPENCODE</code>, <code>GEMINI_CLI</code>; only the name is read, never the value). A process is orphaned when its parent is PID 1, gone, or an init process that adopted it. Codex's shared app-server (<code>--managed-daemon</code>) detaches on purpose, so it counts as one whatever its parent.</li>
+</ul>
+<table>
+<thead><tr><th>Verdict</th><th>When</th></tr></thead>
+<tbody>
+<tr><td><b class="v v-keep">KEEP</b></td><td>A running agent and everything below it. Identical helpers under one agent are folded into one line with <code>×N</code> (<code>--all</code> unfolds them and shows every helper, not just the five biggest).</td></tr>
+<tr><td><b class="v v-review">REVIEW</b></td><td>An orphan whose working folder, or a file it or a process below it has open, is inside a live git worktree; one whose working folder could not be read; a plain command an agent started (it may be a dev server you asked for); a CLI agent whose terminal is gone; a Codex app-server while a Codex is running.</td></tr>
+<tr><td><b class="v v-safe">SAFE</b></td><td>An orphaned snapshot shell, MCP server or helper with nothing in a live worktree. Its <code>kill -TERM</code> line is printed under <b>next</b>.</td></tr>
+</tbody>
+</table>
+<p>Orphans include the processes below them in their memory and CPU (a snapshot shell at 0 % with a runaway child shows the child's CPU). Arguments that look like secrets (<code>--token</code>, <code>API_KEY=…</code>) are shown as <code>***</code>. Linux reads <code>/proc</code>, macOS uses <code>ps</code> and <code>lsof</code>; processes of other users are not attributed. On Windows, <code>procs</code> says it is not supported yet and exits 0 (<code>--json</code> prints <code>"supported": false</code>). Orphaned Codex MCP servers cannot be told apart from your own: Codex starts them with a clean environment and no marker.</p>
+</section>
+
+<section id="guard"><h2><span>07</span>guard and hooks</h2>
 <pre><code>spoilheap guard [--floor 10GB | --floor 5%] [--path DIR]
 spoilheap hook claude     # prints the settings.json block
 spoilheap hook codex      # prints the config.toml block</code></pre>
@@ -117,7 +138,7 @@ spoilheap hook codex      # prints the config.toml block</code></pre>
 <p>Codex hooks are behind a feature flag; the printed block sets <code>[features] hooks = true</code>. Codex also reads <code>~/.codex/hooks.json</code> if you prefer JSON.</p>
 </section>
 
-<section id="mcp"><h2><span>07</span>MCP server</h2>
+<section id="mcp"><h2><span>08</span>MCP server</h2>
 <pre><code>claude mcp add spoilheap -- spoilheap mcp
 codex mcp add spoilheap -- spoilheap mcp
 { "mcpServers": { "spoilheap": { "command": "spoilheap", "args": ["mcp"] } } }</code></pre>
@@ -129,7 +150,7 @@ codex mcp add spoilheap -- spoilheap mcp
 <p>There is no delete tool. The agent can tell you what to run; you run it.</p>
 </section>
 
-<section id="paths"><h2><span>08</span>Paths it reads</h2>
+<section id="paths"><h2><span>09</span>Paths it reads</h2>
 <table>
 <thead><tr><th>Agent</th><th>Where</th></tr></thead>
 <tbody>
@@ -144,14 +165,14 @@ codex mcp add spoilheap -- spoilheap mcp
 <p><code>spoilheap paths</code> prints each one with <code>found</code> or <code>absent</code> for your machine. Sizes are allocated blocks; hard links are counted once; symlinks are never followed; scans stay on one filesystem.</p>
 </section>
 
-<section id="config"><h2><span>09</span>Options and environment</h2>
+<section id="config"><h2><span>10</span>Options and environment</h2>
 <table>
 <thead><tr><th>Flag</th><th>Meaning</th></tr></thead>
 <tbody>
 <tr><td><code>--root DIR</code></td><td>Look for repositories here (repeatable).</td></tr>
 <tr><td><code>--depth N</code></td><td>How deep under each root (default 4).</td></tr>
 <tr><td><code>--older D</code></td><td>History older than this is REVIEW (default <code>30d</code>; units s m h d w).</td></tr>
-<tr><td><code>--all</code></td><td>Also list items under 1 MB.</td></tr>
+<tr><td><code>--all</code></td><td>Also list items under 1 MB. With <code>procs</code>: every helper, duplicates unfolded.</td></tr>
 <tr><td><code>--json</code></td><td>Machine-readable output.</td></tr>
 <tr><td><code>--home DIR</code></td><td>Treat DIR as the home folder.</td></tr>
 <tr><td><code>--no-color</code></td><td>Plain output.</td></tr>
@@ -165,12 +186,13 @@ codex mcp add spoilheap -- spoilheap mcp
 <tr><td><code>NO_COLOR</code>, <code>FORCE_COLOR</code>, <code>COLUMNS</code></td><td>Output styling and width.</td></tr>
 <tr><td><code>SPOILHEAP_VACUUM_MIN</code></td><td>Lower the "worth a VACUUM" bar (default 50MB, with 20 %).</td></tr>
 <tr><td><code>SPOILHEAP_FAKE_FREE=3GB/500GB</code></td><td>Pretend this much is free (for testing guard and hooks).</td></tr>
+<tr><td><code>SPOILHEAP_FAKE_PROCS=file.json</code></td><td>Read the process table for <code>procs</code> from a file (format: <code>tests/fixtures/procs/*.json</code>), for tests and demos.</td></tr>
 <tr><td><code>SPOILHEAP_OS</code>, <code>SPOILHEAP_HOME</code>, <code>SPOILHEAP_APPARENT_SIZE</code></td><td>Test knobs: use another OS's path layout, another home, or count file length instead of blocks (for sparse demo files).</td></tr>
 </tbody>
 </table>
 </section>
 
-<section id="json"><h2><span>10</span>JSON output</h2>
+<section id="json"><h2><span>11</span>JSON output</h2>
 <pre><code>{
   "tool": "spoilheap", "version": "0.1.0", "generated_at": "2026-10-19T02:41:07Z",
   "disks": [{ "path": "/", "total_bytes": 494000000000, "free_bytes": 3100000000 }],
@@ -190,9 +212,10 @@ codex mcp add spoilheap -- spoilheap mcp
   "notes": []
 }</code></pre>
 <p><code>action.type</code> is one of <code>remove</code>, <code>git-worktree-remove</code>, <code>git-worktree-prune</code>, <code>manual</code> (with <code>command</code>) or <code>none</code>. <code>parent</code> is the id of the worktree a build-output item sits in.</p>
+<p><code>spoilheap procs --json</code> prints <code>tool</code>, <code>version</code>, <code>generated_at</code>, <code>supported</code>, <code>totals</code> (<code>agents</code>, <code>processes</code>, <code>orphans</code>, <code>rss_bytes</code>, <code>safe</code>, <code>review</code>, <code>keep</code>) and a flat <code>processes</code> list. Each entry has <code>pid</code>, <code>ppid</code>, <code>agent</code>, <code>role</code> (<code>agent</code>, <code>helper</code>, <code>orphan</code>), <code>kind</code>, <code>label</code>, <code>agent_pid</code>, <code>orphan</code>, <code>orphan_reason</code>, <code>cwd</code>, <code>rss_bytes</code>, <code>tree_rss_bytes</code>, <code>cpu_percent</code>, <code>age_s</code>, <code>children</code>, <code>copies</code>, <code>command</code> (secrets masked), <code>verdict</code>, <code>reason</code> and <code>suggested_command</code>.</p>
 </section>
 
-<section id="exit"><h2><span>11</span>Exit codes</h2>
+<section id="exit"><h2><span>12</span>Exit codes</h2>
 <table><tbody>
 <tr><td><code>0</code></td><td>Done (for <code>guard</code>: enough free space).</td></tr>
 <tr><td><code>1</code></td><td><code>clean</code>: at least one item could not be removed.</td></tr>
@@ -201,9 +224,9 @@ codex mcp add spoilheap -- spoilheap mcp
 </tbody></table>
 </section>
 
-<section id="faq"><h2><span>12</span>FAQ</h2>
+<section id="faq"><h2><span>13</span>FAQ</h2>
 <h3>Is it safe to run?</h3>
-<p><code>spoilheap</code>, <code>paths</code>, <code>watch</code>, <code>guard</code> and <code>mcp</code> only read. Only <code>clean … --yes</code> deletes, and only items you selected, inside the folders they came from.</p>
+<p><code>spoilheap</code>, <code>paths</code>, <code>watch</code>, <code>procs</code>, <code>guard</code> and <code>mcp</code> only read; <code>procs</code> prints <code>kill</code> commands but never sends a signal. Only <code>clean … --yes</code> deletes, and only items you selected, inside the folders they came from.</p>
 <h3>Why does the disk not get back everything clean promised?</h3>
 <p>A running app may hold deleted files open (the space comes back when it quits), or a filesystem snapshot (APFS local snapshots, Btrfs, ZFS) may keep the blocks. spoilheap measures before and after and says when this happened.</p>
 <h3>Why does it not delete old chats by itself?</h3>

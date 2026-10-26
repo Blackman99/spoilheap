@@ -1,0 +1,9 @@
+{
+  "worktrees": [],
+  "procs": [
+    {"pid": 1, "ppid": 0, "name": "launchd", "argv": ["/sbin/launchd"]},
+    {"pid": 501, "ppid": 1, "name": "systemd", "argv": ["/lib/systemd/systemd", "--user"]},
+    {"pid": 8810, "ppid": 8800, "name": "node", "argv": ["node", "/home/dev/.npm/_npx/77/node_modules/.bin/mcp-server-github", "--token=ghp_example"], "cwd": "/home/dev/old/scratch (deleted)", "rss": 88000000, "cpu": 0.0, "age_s": 3000000, "env": ["CLAUDECODE"]},
+    {"pid": 8820, "ppid": 501, "name": "uv", "argv": ["uv", "run", "--with", "mcp", "/home/dev/tools/notes_mcp.py"], "cwd": "/home/dev", "rss": 40000000, "cpu": 0.2, "age_s": 90000, "env": ["GEMINI_CLI"]}
+  ]
+}

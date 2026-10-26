@@ -77,7 +77,7 @@ next
 
 ## What it will and will not delete
 
-- **`spoilheap` on its own only reads.** So do `paths`, `watch`, `guard` and `mcp`. The only file they write is the list of item numbers, in your cache folder.
+- **`spoilheap` on its own only reads.** So do `paths`, `watch`, `procs`, `guard` and `mcp`. The only file they write is the list of item numbers, in your cache folder. `procs` never sends a signal: it prints the `kill -TERM` line for you to run.
 - **`clean` is a dry run unless you add `--yes`.** It prints every path or git command it would run, and the total.
 - **It works only inside the agents' own folders** (listed [below](#coverage)) and, in the repositories it finds (under the current folder, `~/code`, `~/src` and similar, or `--root`), only inside `.git/objects/pack`, stale worktree registrations and git-ignored build output in agent worktrees. It never follows a symlink, never leaves the folder an item came from, and never crosses into another filesystem.
 - **Worktrees are removed with `git worktree remove`, never `rm -rf`,** and only after a fresh re-check: no uncommitted changes, every commit also on another branch, tag or remote, and no process working inside it. If git refuses, that item fails with git's reason and the rest go on.
@@ -96,8 +96,51 @@ next
 | `spoilheap hook claude\|codex` | Prints the settings block that runs `guard`. |
 | `spoilheap mcp` | A read-only MCP server with `disk_status` and `disk_leftovers`. There is no delete tool. |
 | `spoilheap paths` | Every location it reads, with `found` / `absent` on this machine. |
+| `spoilheap procs [--all]` | Agent processes grouped by the agent running them, with memory and CPU. Orphans (parent at PID 1 or gone) get SAFE / REVIEW, the rest KEEP, and SAFE ones get a `kill -TERM` line to run yourself. Linux and macOS; not in v0.1.0 yet. |
 
 How each verdict is decided, flag by flag, is in the [docs](https://blackman99.github.io/spoilheap/docs/#verdicts).
+
+### Leftover processes
+
+Agents leave processes behind too: Claude Code snapshot shells orphaned at PPID 1 and still burning a core ([anthropics/claude-code#103313](https://github.com/anthropics/claude-code/issues/103313)), MCP servers whose session ended, Codex helpers doubled by restarts ([openai/codex#55141](https://github.com/openai/codex/issues/55141)). `spoilheap procs` lists them without touching them:
+
+```text
+spoilheap procs  agent processes on this machine · read-only, nothing is signalled
+2 agents running · 13 processes · 1.3 GB memory · 3 orphans · SAFE 2 · REVIEW 1 · KEEP 9
+
+CLAUDE CODE  9 processes · 991.3 MB
+     4242 KEEP   claude                                                 412.0 MB  3.2% CPU · 1 h
+                 ~/code/shop — Claude Code itself, running with 4 helper processes
+     4411 KEEP   ↳ node vitest                                          180.0 MB  88% CPU · just now
+     4302 KEEP   ↳ MCP server mcp-server-playwright                      98.0 MB  0.4% CPU · 1 h
+     4300 KEEP   ↳ MCP server mcp-server-filesystem                      61.0 MB  0.1% CPU · 1 h
+     4410 KEEP   ↳ snapshot shell (zsh): npm test                         6.0 MB  0% CPU · just now
+     6100 REVIEW orphan · node vite                                     140.0 MB  0.3% CPU · 2 h
+                 ~/code/shop — PPID 1, but its working folder is in the live worktree ~/code/shop:
+                 it may still be working there
+     8810 SAFE   orphan · MCP server mcp-server-postgres                 88.0 MB  0% CPU · 34 d
+                 ~/old/scratch (deleted) — parent 8800 is gone: the Claude Code session that started
+                 it has ended; nothing of it is in a live worktree, its folder was deleted
+     7731 SAFE   orphan · snapshot shell (zsh): yes > /dev/null           6.3 MB  99% CPU · 3 d
+                 /tmp — PPID 1: Claude Code exited and left this shell behind; nothing of it is in a
+                 live worktree; 1 child process below it
+
+CODEX  4 processes · 308.0 MB
+     5100 KEEP   codex                                                   48.0 MB  0.2% CPU · 1 h
+                 ~/.codex/worktrees/7f3e/shop — Codex itself, running with 3 helper processes
+     5101 KEEP   ↳ codex                                                120.0 MB  1.1% CPU · 1 h
+     5110 KEEP   ↳ MCP server mcp-server-github ×2                      140.0 MB  0% CPU · 59 min
+
+note ×N: that many helpers run the same command under one agent. Codex restarts have doubled them
+     (openai/codex#55141); restarting the agent clears them
+
+next
+  kill -TERM 8810 7731        stops 2 SAFE orphans (SIGTERM lets them exit cleanly)
+  kill -TERM 6100             REVIEW: only once you know it is not yours
+  spoilheap only lists; run these yourself, then `spoilheap procs` again to check
+```
+
+Matching is narrow on purpose: agents by executable or package name, helpers only below a live agent, orphans only when the command line or an agent marker variable ties them to an agent. A plain `node` is never listed. An orphan with its working folder or an open file inside a live worktree is REVIEW, since it may still be doing your work. The full rules are in the [docs](https://blackman99.github.io/spoilheap/docs/#procs).
 
 ## Coverage
 
@@ -130,7 +173,7 @@ To stop Claude Code before the disk fills, run `spoilheap hook claude` and paste
 ## More
 
 - [GOAL.md](GOAL.md): what this tool is for, and what it will never do
-- [ROADMAP.md](ROADMAP.md): orphaned agent helper processes, Windows process attribution, retention rules
+- [ROADMAP.md](ROADMAP.md): stopping SAFE orphans, Windows process attribution, retention rules
 - [CONTRIBUTING.md](CONTRIBUTING.md): adding a path requires a link to the agent's source or docs
 - No network access and no telemetry. MIT licensed.
 

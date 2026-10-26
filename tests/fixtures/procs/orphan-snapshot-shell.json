@@ -1,0 +1,8 @@
+{
+  "worktrees": ["/home/dev/code/shop"],
+  "procs": [
+    {"pid": 1, "ppid": 0, "name": "systemd", "argv": ["/sbin/init"]},
+    {"pid": 7731, "ppid": 1, "name": "zsh", "argv": ["/bin/zsh", "-c", "-l", "source /home/dev/.claude/shell-snapshots/snapshot-zsh-1761300000000-q8r1.sh && eval 'tail -f /tmp/build.log' \\< /dev/null && pwd -P >| /tmp/claude-77aa-cwd"], "cwd": "/tmp", "rss": 5200000, "cpu": 0.0, "age_s": 259200, "env": ["CLAUDECODE"]},
+    {"pid": 7732, "ppid": 7731, "name": "tail", "argv": ["tail", "-f", "/tmp/build.log"], "cwd": "/tmp", "files": ["/tmp/build.log"], "rss": 1100000, "cpu": 0.0, "age_s": 259200, "env": ["CLAUDECODE"]}
+  ]
+}

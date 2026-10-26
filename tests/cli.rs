@@ -457,3 +457,123 @@ fn empty_home_says_so() {
     assert!(s.contains("Nothing found"), "{s}");
     let _ = fs::remove_dir_all(&dir);
 }
+
+fn procs(fixture: Option<&str>, args: &[&str]) -> (i32, String, String) {
+    let mut c = bin();
+    c.arg("procs").args(args).env_remove("SPOILHEAP_OS");
+    match fixture {
+        Some(f) => {
+            let p = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/procs")
+                .join(f);
+            c.env("SPOILHEAP_FAKE_PROCS", p);
+        }
+        None => {
+            c.env_remove("SPOILHEAP_FAKE_PROCS");
+        }
+    }
+    let o = c.output().unwrap();
+    (
+        o.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&o.stdout).into_owned(),
+        String::from_utf8_lossy(&o.stderr).into_owned(),
+    )
+}
+
+#[test]
+fn procs_lists_groups_verdicts_and_next_steps() {
+    let (code, out, err) = procs(Some("demo.json"), &[]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("2 agents running · 13 processes"), "{out}");
+    assert!(out.contains("\nCLAUDE CODE  9 processes"), "{out}");
+    assert!(out.contains("\nCODEX  4 processes"), "{out}");
+    let line = |pid: &str| {
+        out.lines()
+            .find(|l| l.trim_start().starts_with(pid))
+            .unwrap_or_else(|| panic!("{pid} missing:\n{out}"))
+            .to_string()
+    };
+    assert!(line("4242 ").contains("KEEP   claude"));
+    assert!(line("7731 ").contains("SAFE   orphan · snapshot shell (zsh)"));
+    assert!(line("6100 ").contains("REVIEW orphan · node vite"));
+    assert!(line("5110 ").contains("×2"));
+    assert!(out.contains("kill -TERM 8810 7731"), "{out}");
+    assert!(out.contains("spoilheap only lists"), "{out}");
+    assert!(
+        !out.contains("hunter2"),
+        "secrets in argv are never printed"
+    );
+    assert!(
+        !out.contains("3100"),
+        "a node process no agent started is not listed"
+    );
+
+    // --all unfolds duplicates
+    let (_, all, _) = procs(Some("demo.json"), &["--all"]);
+    assert_eq!(all.matches("mcp-server-github").count(), 2, "{all}");
+}
+
+#[test]
+fn procs_json_is_flat_and_complete() {
+    let (code, out, _) = procs(Some("demo.json"), &["--json"]);
+    assert_eq!(code, 0);
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["supported"], true);
+    assert_eq!(v["totals"]["agents"], 2);
+    assert_eq!(v["totals"]["safe"], 2);
+    let p = v["processes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["pid"] == 7731)
+        .unwrap();
+    assert_eq!(p["role"], "orphan");
+    assert_eq!(p["kind"], "snapshot shell");
+    assert_eq!(p["orphan_reason"], "PPID 1");
+    assert_eq!(p["verdict"], "SAFE");
+    assert_eq!(p["suggested_command"], "kill -TERM 7731");
+    assert_eq!(p["children"], serde_json::json!([7732]));
+    assert!(!out.contains("hunter2"));
+}
+
+#[test]
+fn procs_empty_windows_and_errors() {
+    let (code, out, _) = procs(Some("unrelated-node.json"), &[]);
+    assert_eq!(code, 0);
+    assert!(out.contains("No agent processes running."), "{out}");
+
+    let mut c = bin();
+    let o = c
+        .args(["procs"])
+        .env("SPOILHEAP_OS", "windows")
+        .env_remove("SPOILHEAP_FAKE_PROCS")
+        .output()
+        .unwrap();
+    assert_eq!(o.status.code(), Some(0));
+    assert!(String::from_utf8_lossy(&o.stdout).contains("not supported on Windows yet"));
+    let o = bin()
+        .args(["procs", "--json"])
+        .env("SPOILHEAP_OS", "windows")
+        .env_remove("SPOILHEAP_FAKE_PROCS")
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap();
+    assert_eq!(v["supported"], false);
+
+    let (code, _, err) = procs(Some("no-such-fixture.json"), &[]);
+    assert_eq!(code, 1);
+    assert!(err.contains("SPOILHEAP_FAKE_PROCS"), "{err}");
+
+    let o = bin().arg("proc").output().unwrap();
+    assert_eq!(o.status.code(), Some(64));
+    assert!(String::from_utf8_lossy(&o.stderr).contains("spoilheap procs"));
+}
+
+#[test]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn procs_reads_the_live_table() {
+    let (code, out, err) = procs(None, &["--json"]);
+    assert_eq!(code, 0, "{err}");
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["supported"], true);
+}
