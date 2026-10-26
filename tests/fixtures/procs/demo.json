@@ -1,0 +1,22 @@
+{
+  "worktrees": ["/home/dev/code/shop", "/home/dev/.codex/worktrees/7f3e/shop"],
+  "procs": [
+    {"pid": 1, "ppid": 0, "name": "systemd", "argv": ["/sbin/init"]},
+    {"pid": 900, "ppid": 1, "name": "zsh", "argv": ["-zsh"], "cwd": "/home/dev"},
+    {"pid": 901, "ppid": 1, "name": "zsh", "argv": ["-zsh"], "cwd": "/home/dev"},
+    {"pid": 4242, "ppid": 900, "name": "claude", "argv": ["claude"], "cwd": "/home/dev/code/shop", "rss": 412000000, "cpu": 3.2, "age_s": 5400, "env": ["CLAUDECODE"]},
+    {"pid": 4300, "ppid": 4242, "name": "node", "argv": ["node", "/home/dev/.npm/_npx/1a2b/node_modules/.bin/mcp-server-filesystem", "/home/dev/code/shop"], "cwd": "/home/dev/code/shop", "rss": 61000000, "cpu": 0.1, "age_s": 5390, "env": ["CLAUDECODE"]},
+    {"pid": 4302, "ppid": 4242, "name": "node", "argv": ["node", "/home/dev/.npm/_npx/9f/node_modules/.bin/mcp-server-playwright"], "cwd": "/home/dev/code/shop", "rss": 98000000, "cpu": 0.4, "age_s": 5389, "env": ["CLAUDECODE"]},
+    {"pid": 4410, "ppid": 4242, "name": "zsh", "argv": ["/bin/zsh", "-c", "-l", "source /home/dev/.claude/shell-snapshots/snapshot-zsh-1761400000000-k2x9.sh && eval 'npm test'"], "cwd": "/home/dev/code/shop", "rss": 6000000, "cpu": 0.0, "age_s": 12, "env": ["CLAUDECODE"]},
+    {"pid": 4411, "ppid": 4410, "name": "node", "argv": ["node", "/home/dev/code/shop/node_modules/.bin/vitest", "run"], "cwd": "/home/dev/code/shop", "rss": 180000000, "cpu": 88.0, "age_s": 11, "env": ["CLAUDECODE"]},
+    {"pid": 5100, "ppid": 901, "name": "node", "argv": ["node", "/usr/lib/node_modules/@openai/codex/bin/codex.js"], "cwd": "/home/dev/.codex/worktrees/7f3e/shop", "rss": 48000000, "cpu": 0.2, "age_s": 3600},
+    {"pid": 5101, "ppid": 5100, "name": "codex", "argv": ["/usr/lib/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/codex/codex"], "cwd": "/home/dev/.codex/worktrees/7f3e/shop", "rss": 120000000, "cpu": 1.1, "age_s": 3600},
+    {"pid": 5110, "ppid": 5101, "name": "node", "argv": ["node", "/home/dev/.npm/_npx/c3/node_modules/.bin/mcp-server-github"], "cwd": "/home/dev/.codex/worktrees/7f3e/shop", "rss": 70000000, "cpu": 0.0, "age_s": 3590},
+    {"pid": 5111, "ppid": 5101, "name": "node", "argv": ["node", "/home/dev/.npm/_npx/c3/node_modules/.bin/mcp-server-github"], "cwd": "/home/dev/.codex/worktrees/7f3e/shop", "rss": 70000000, "cpu": 0.0, "age_s": 1200},
+    {"pid": 7731, "ppid": 1, "name": "zsh", "argv": ["/bin/zsh", "-c", "-l", "source /home/dev/.claude/shell-snapshots/snapshot-zsh-1761300000000-q8r1.sh && eval 'yes > /dev/null'"], "cwd": "/tmp", "rss": 5200000, "cpu": 0.0, "age_s": 259200, "env": ["CLAUDECODE"]},
+    {"pid": 7732, "ppid": 7731, "name": "yes", "argv": ["yes"], "cwd": "/tmp", "rss": 1100000, "cpu": 99.0, "age_s": 259200, "env": ["CLAUDECODE"]},
+    {"pid": 8810, "ppid": 8800, "name": "node", "argv": ["node", "/home/dev/.npm/_npx/77/node_modules/.bin/mcp-server-postgres", "--password", "hunter2"], "cwd": "/home/dev/old/scratch (deleted)", "rss": 88000000, "cpu": 0.0, "age_s": 3000000, "env": ["CLAUDECODE"]},
+    {"pid": 6100, "ppid": 1, "name": "node", "argv": ["node", "/home/dev/code/shop/node_modules/.bin/vite"], "cwd": "/home/dev/code/shop", "rss": 140000000, "cpu": 0.3, "age_s": 7200, "env": ["CLAUDECODE"]},
+    {"pid": 3100, "ppid": 1, "name": "node", "argv": ["node", "/home/dev/code/site/node_modules/.bin/next", "dev"], "cwd": "/home/dev/code/site", "rss": 300000000, "cpu": 2.0, "age_s": 9000}
+  ]
+}

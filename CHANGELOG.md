@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `spoilheap procs [--all] [--json]`: lists agent processes (Claude Code, Codex CLI and desktop, OpenCode, Gemini CLI, Cline, their MCP servers and helpers, Claude Code snapshot shells) grouped by agent, with memory and CPU. Orphans are marked and get SAFE or REVIEW with the reason; SAFE ones get a `kill -TERM` line to run yourself. It never sends a signal. Linux and macOS; on Windows it says it is not supported yet.
+
 ## 0.1.0 — 2026-10-19
 
 First release.

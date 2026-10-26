@@ -6,7 +6,7 @@ Show every gigabyte your coding agents left on this machine, say per item whethe
 People who run Claude Code, Codex (CLI and desktop), OpenCode, Gemini CLI or Cline on a laptop or a cloud dev box, and who have had a "disk full" surprise or are heading for one.
 
 ## Rules that do not change
-1. **Looking never changes anything.** `spoilheap`, `paths`, `watch`, `guard` and `mcp` only read.
+1. **Looking never changes anything.** `spoilheap`, `paths`, `watch`, `procs`, `guard` and `mcp` only read. `procs` never sends a signal; it prints the command for you to run.
 2. **Deleting is opt-in, item by item.** `clean` is a dry run without `--yes`, it re-checks every item right before acting, and KEEP is never touched.
 3. **Only agent-owned paths.** spoilheap only works in the folders the agents themselves define (taken from their source or docs), plus `.git/objects/pack`, stale worktree registrations and git-ignored build output inside agent worktrees.
 4. **git decides about worktrees.** Uncommitted changes or a process inside means KEEP. Commits that exist nowhere else mean REVIEW, with the count. Removal goes through `git worktree remove`, never `rm -rf` and never `--force`.

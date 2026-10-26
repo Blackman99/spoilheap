@@ -1,3 +1,4 @@
+mod agentprocs;
 mod clean;
 mod dig;
 mod disk;
@@ -6,6 +7,7 @@ mod guard;
 mod mcp;
 mod out;
 mod procs;
+mod ptable;
 mod render;
 mod sqlite;
 mod units;
@@ -31,6 +33,9 @@ USAGE
   spoilheap guard [--floor 10GB]          hook: exit 2 when free space is under the floor
   spoilheap hook claude|codex             print the hook config that runs `guard`
   spoilheap mcp                           read-only MCP server (disk_status, disk_leftovers)
+  spoilheap procs [--all] [--json]
+      Agent processes grouped by agent, orphans marked, RSS and CPU, a verdict for each.
+      Read-only: SAFE orphans come with the `kill -TERM` to stop them yourself.
   spoilheap paths                         where spoilheap looks
 
 OPTIONS
@@ -38,7 +43,7 @@ OPTIONS
                  ~/code ~/src ~/projects ~/dev ~/work ~/Developer ~/repos if they exist)
   --depth N      how deep to look for repositories under each root (default 4)
   --older D      history older than this is REVIEW, newer is KEEP (default 30d)
-  --all          also show items under 1 MB
+  --all          also show items under 1 MB (procs: every helper, duplicates unfolded)
   --json         machine-readable output
   --home DIR     treat DIR as the home folder (for testing)
   --no-color     plain output (NO_COLOR is respected too)
@@ -216,13 +221,16 @@ fn parse() -> Result<Args, String> {
             _ => {
                 if first
                     && [
-                        "dig", "clean", "watch", "guard", "hook", "mcp", "paths", "help", "version",
+                        "dig", "clean", "watch", "guard", "hook", "mcp", "procs", "paths", "help",
+                        "version",
                     ]
                     .contains(&arg.as_str())
                 {
                     a.cmd = arg.clone();
                 } else if first && !arg.chars().all(|c| c.is_ascii_digit()) {
-                    let cmds = ["dig", "clean", "watch", "guard", "hook", "mcp", "paths"];
+                    let cmds = [
+                        "dig", "clean", "watch", "guard", "hook", "mcp", "procs", "paths",
+                    ];
                     let near = cmds.iter().min_by_key(|c| lev(arg.as_str(), c)).unwrap();
                     let hint = if lev(arg.as_str(), near) <= 2 {
                         format!(" Did you mean `spoilheap {near}`?")
@@ -230,7 +238,7 @@ fn parse() -> Result<Args, String> {
                         String::new()
                     };
                     return Err(format!(
-                        "unknown command '{arg}'.{hint} Commands: dig (default), clean, watch, guard, hook, mcp, paths"
+                        "unknown command '{arg}'.{hint} Commands: dig (default), clean, watch, guard, hook, mcp, procs, paths"
                     ));
                 } else {
                     a.pos.push(arg.clone());
@@ -462,6 +470,7 @@ fn main() {
             },
         },
         "mcp" => mcp::serve(&env),
+        "procs" => agentprocs::run(&env, &style(&a, true), a.json, a.all),
         "paths" => {
             let st = style(&a, true);
             let mut list: Vec<(String, PathBuf)> = vec![

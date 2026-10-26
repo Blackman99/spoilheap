@@ -1,0 +1,10 @@
+{
+  "worktrees": ["/home/dev/code/shop", "/home/dev/.codex/worktrees/a1b2/shop"],
+  "procs": [
+    {"pid": 1, "ppid": 0, "name": "systemd", "argv": ["/sbin/init"]},
+    {"pid": 6100, "ppid": 1, "name": "node", "argv": ["node", "/home/dev/code/shop/node_modules/.bin/mcp-server-postgres"], "cwd": "/home/dev/code/shop/api", "rss": 52000000, "cpu": 0.0, "age_s": 7200, "env": ["CLAUDECODE"]},
+    {"pid": 6200, "ppid": 1, "name": "zsh", "argv": ["/bin/zsh", "-c", "-l", "source /home/dev/.claude/shell-snapshots/snapshot-zsh-1761000000000-zz.sh && eval 'npm run dev'"], "cwd": "/tmp", "rss": 5000000, "cpu": 0.0, "age_s": 7300, "env": ["CLAUDECODE"]},
+    {"pid": 6201, "ppid": 6200, "name": "node", "argv": ["node", "/home/dev/.codex/worktrees/a1b2/shop/node_modules/.bin/vite"], "cwd": "/home/dev/.codex/worktrees/a1b2/shop", "rss": 140000000, "cpu": 1.5, "age_s": 7290, "env": ["CLAUDECODE"]},
+    {"pid": 6300, "ppid": 1, "name": "python3", "argv": ["python3", "-m", "http.server", "8000"], "cwd": "/home/dev/code/shop/dist", "rss": 21000000, "cpu": 0.0, "age_s": 7000, "env": ["CODEX_THREAD_ID"]}
+  ]
+}
